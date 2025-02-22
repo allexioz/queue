@@ -286,6 +286,44 @@
             align-items: center;
             padding: 10px 0;
         }
+
+        .edit-player-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+            width: 90%;
+            max-width: 400px;
+        }
+        .player-card-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .edit-btn {
+            background: #228be6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+        .delete-btn {
+            background: #fa5252;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -334,6 +372,22 @@
         <h3>Game Results</h3>
         <div id="gameResultContent"></div>
         <button onclick="submitGameResults()">Submit Results</button>
+    </div>
+
+    <div id="editPlayerDialog" class="edit-player-dialog">
+        <h3>Edit Player</h3>
+        <div>
+            <input type="text" id="editPlayerName" placeholder="Player Name" style="width: 100%; margin-bottom: 10px;">
+            <select id="editPlayerLevel" style="width: 100%; margin-bottom: 10px;">
+                <option value="1">Level 1 - Beginner (Learning the basics)</option>
+                <option value="2">Level 2 - Intermediate (Consistent rallies)</option>
+                <option value="3">Level 3 - Advanced (Good game control)</option>
+                <option value="4">Level 4 - Expert (Strong all-around player)</option>
+                <option value="5">Level 5 - Pro (Tournament level)</option>
+            </select>
+            <button onclick="savePlayerEdit()" style="margin-right: 10px;">Save Changes</button>
+            <button onclick="closeEditDialog()">Cancel</button>
+        </div>
     </div>
 
     <footer class="footer">
@@ -619,13 +673,27 @@
                         Games: ${player.gamesPlayed} | 
                         W/L: ${player.wins}/${player.losses}
                     </div>
+                    <div class="player-card-actions">
+                        <button class="edit-btn" onclick="event.preventDefault(); editPlayer('${player.id}')">Edit</button>
+                        <button class="delete-btn" onclick="event.preventDefault(); deletePlayer('${player.id}')">Delete</button>
+                    </div>
                 </div>
             `;
         }
 
         function addNewPlayer() {
             const name = prompt("Enter player name:");
-            const level = parseInt(prompt("Enter player level (1-5):", "3"));
+            if (!name) return;
+            
+            const levelPrompt = 
+                "Select player level:\n" +
+                "1 - Beginner (Learning the basics)\n" +
+                "2 - Intermediate (Consistent rallies)\n" +
+                "3 - Advanced (Good game control)\n" +
+                "4 - Expert (Strong all-around player)\n" +
+                "5 - Pro (Tournament level)";
+            
+            const level = parseInt(prompt(levelPrompt, "3"));
             
             if (name && !isNaN(level) && level >= 1 && level <= 5) {
                 players.push({
@@ -636,6 +704,56 @@
                     wins: 0,
                     losses: 0
                 });
+                updateDisplay();
+            }
+        }
+
+        let editingPlayerId = null;
+
+        function editPlayer(playerId) {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            editingPlayerId = playerId;
+            document.getElementById('editPlayerName').value = player.name;
+            document.getElementById('editPlayerLevel').value = player.level;
+            document.getElementById('editPlayerDialog').style.display = 'block';
+            document.getElementById('dialogOverlay').style.display = 'block';
+        }
+
+        function closeEditDialog() {
+            editingPlayerId = null;
+            document.getElementById('editPlayerDialog').style.display = 'none';
+            document.getElementById('dialogOverlay').style.display = 'none';
+        }
+
+        function savePlayerEdit() {
+            if (!editingPlayerId) return;
+
+            const name = document.getElementById('editPlayerName').value;
+            const level = parseInt(document.getElementById('editPlayerLevel').value);
+
+            if (!name || isNaN(level)) {
+                alert('Please fill in all fields correctly');
+                return;
+            }
+
+            const player = players.find(p => p.id === editingPlayerId);
+            if (player) {
+                player.name = name;
+                player.level = level;
+            }
+
+            closeEditDialog();
+            updateDisplay();
+        }
+
+        function deletePlayer(playerId) {
+            if (!confirm('Are you sure you want to remove this player?')) return;
+
+            const playerIndex = players.findIndex(p => p.id === playerId);
+            if (playerIndex > -1) {
+                players.splice(playerIndex, 1);
                 updateDisplay();
             }
         }
