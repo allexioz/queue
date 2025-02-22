@@ -570,35 +570,73 @@
             gap: var(--spacing-sm);
         }
 
+        /* Update the mobile-menu-button styles */
         .mobile-menu-button {
             display: none;
             position: fixed;
             bottom: var(--spacing-md);
             right: var(--spacing-md);
-            width: 50px;
-            height: 50px;
-            border-radius: 25px;
+            padding: var(--spacing-sm) var(--spacing-md);
+            min-width: 140px;
+            height: 48px;
+            border-radius: 24px;
             background: var(--primary);
             color: white;
             border: none;
             box-shadow: var(--shadow-lg);
             z-index: 1000;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        @media (max-width: 800px) {
+        .mobile-menu-button:active {
+            transform: scale(0.98);
+        }
+
+        .mobile-menu-button:hover {
+            box-shadow: var(--shadow-xl);
+        }
+
+        @media (min-width: 801px) {
             .mobile-menu-button {
-                display: block;
+                display: none;
+            }
+        }
+
+        /* Add these styles for the sidebar overlay */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Update sidebar styles for mobile */
+        @media (max-width: 800px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                right: -300px; /* Start off-screen */
+                bottom: 0;
+                width: 300px;
+                transition: right 0.3s ease;
+                z-index: 1000;
             }
 
-            .dialog {
-                width: 100%;
-                height: 100%;
-                max-width: 100%;
-                max-height: 100%;
-                border-radius: 0;
-                top: 0;
-                left: 0;
-                transform: none;
+            .sidebar.active {
+                right: 0;
             }
         }
 
@@ -1883,7 +1921,11 @@
     <audio id="gameStartSound" src="path-to-start-sound.mp3"></audio>
     <audio id="gameEndSound" src="path-to-end-sound.mp3"></audio>
 
-    <button class="mobile-menu-button">☰</button>
+    <!-- Replace the existing mobile menu button with this -->
+    <button class="mobile-menu-button">
+        <span>👥</span>
+        <span>View Players</span>
+    </button>
 
     <script>
         // Core data structures
@@ -3479,6 +3521,7 @@
                 this.setupEventListeners();
                 this.setupPlayerManagerListeners();
                 this.setupCourtManagerListeners();
+                this.setupMobileMenu(); // Add this line
                 
                 // Initial render
                 this.renderPlayersList();
@@ -3607,6 +3650,45 @@
                 if (statusSet.has('waiting')) statusMessages.push('Available to play');
                 
                 return statusMessages.length > 0 ? statusMessages.join(' • ') : 'Available';
+            }
+
+            // Add this after the existing setupEventListeners method in UIManager class
+            setupMobileMenu() {
+                const mobileMenuBtn = document.querySelector('.mobile-menu-button');
+                const sidebar = document.querySelector('.sidebar');
+                
+                // Create overlay element
+                const overlay = document.createElement('div');
+                overlay.className = 'sidebar-overlay';
+                document.body.appendChild(overlay);
+
+                // Toggle sidebar
+                mobileMenuBtn.addEventListener('click', () => {
+                    sidebar.classList.add('active');
+                    overlay.classList.add('active');
+                });
+
+                // Close sidebar when clicking overlay
+                overlay.addEventListener('click', () => {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                });
+
+                // Add swipe to close
+                let touchStartX = 0;
+                let touchEndX = 0;
+
+                sidebar.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, false);
+
+                sidebar.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    if (touchStartX - touchEndX > 50) { // Swipe left
+                        sidebar.classList.remove('active');
+                        overlay.classList.remove('active');
+                    }
+                }, false);
             }
         }
 
