@@ -3480,19 +3480,6 @@
                 this.setupPlayerManagerListeners();
                 this.setupCourtManagerListeners();
                 
-                // Add reset button to main header
-                const mainHeaderActions = document.querySelector('.main-header-actions');
-                const resetButton = document.createElement('button');
-                resetButton.className = 'button secondary';
-                resetButton.textContent = 'Reset All Data';
-                resetButton.addEventListener('click', () => {
-                    if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
-                        PersistenceManager.clearState();
-                        window.location.reload();
-                    }
-                });
-                mainHeaderActions.appendChild(resetButton);
-                
                 // Initial render
                 this.renderPlayersList();
                 this.renderCourts();
