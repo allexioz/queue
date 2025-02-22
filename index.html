@@ -66,7 +66,6 @@
             display: grid;
             grid-template-columns: 300px 1fr;
             gap: 20px;
-            height: calc(100vh - 150px); /* Account for header and margins */
         }
         .player-pool {
             background: #f8f9fa;
@@ -74,8 +73,6 @@
             border: 1px solid #dee2e6;
             display: flex;
             flex-direction: column;
-            height: 100%;
-            overflow: hidden; /* Prevent container overflow */
         }
         .player-pool h2 {
             padding: var(--spacing-md);
@@ -85,12 +82,57 @@
             padding: var(--spacing-md);
             background: #fff;
             border-bottom: 1px solid var(--color-border);
-            flex-shrink: 0; /* Prevent controls from shrinking */
+        }
+        .filter-section {
+            margin-bottom: var(--spacing-md);
+        }
+        .filter-section:last-child {
+            margin-bottom: 0;
+        }
+        .filter-label {
+            font-size: 0.9em;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-xs);
+            display: block;
+        }
+        .filter-chips {
+            display: flex;
+            gap: var(--spacing-xs);
+            flex-wrap: wrap;
+            margin-bottom: var(--spacing-sm);
+        }
+        .filter-chip {
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.85em;
+            cursor: pointer;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            transition: all 0.2s ease;
+        }
+        .filter-chip:hover {
+            border-color: var(--color-primary);
+        }
+        .filter-chip.active {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+        .search-box {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: all 0.2s ease;
+        }
+        .search-box:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
         }
         #availablePlayers {
             padding: var(--spacing-md);
-            overflow-y: auto; /* Enable scrolling */
-            flex-grow: 1; /* Take remaining space */
         }
         .court {
             background: var(--color-surface);
@@ -155,13 +197,22 @@
             position: relative;
             cursor: grab;
         }
+        .player-card:not(.in-game) {
+            transition: all 0.2s ease;
+        }
+        .player-card.dragging {
+            opacity: 0.5;
+            transform: scale(1.02);
+            cursor: grabbing;
+        }
+        .player-card.in-game {
+            cursor: not-allowed;
+            opacity: 0.9;
+            background: var(--color-surface);
+        }
         .player-card:hover {
             transform: translateY(-1px);
             box-shadow: var(--shadow-md);
-        }
-        .player-card.in-game {
-            cursor: default;
-            opacity: 0.9;
         }
         .player-card.in-game:hover {
             transform: none;
@@ -181,7 +232,8 @@
             transform: scale(1.01);
             border: 2px dashed var(--color-primary);
             box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
-            transition: all 0.2s ease;
+            background: var(--color-success-light);
+            transition: all 0.2s var(--bounce);
         }
         .controls {
             margin: 20px 0;
@@ -264,8 +316,6 @@
             }
             
             .player-pool {
-                max-height: 300px;
-                overflow-y: auto;
             }
 
             .court-header {
@@ -590,36 +640,125 @@
 
         /* Game results styling */
         .game-results {
+            padding: var(--spacing-md);
+            max-width: 500px;
+        }
+
+        .game-duration {
             text-align: center;
-            padding: var(--spacing-lg);
-        }
-
-        .results-summary {
-            margin-top: var(--spacing-md);
-        }
-
-        .duration {
-            font-size: 1.2em;
             color: var(--color-text-secondary);
+            font-size: 1.1em;
             margin-bottom: var(--spacing-md);
         }
 
-        .player-results {
-            display: flex;
-            justify-content: center;
+        .player-result-cards {
+            display: grid;
             gap: var(--spacing-md);
-            flex-wrap: wrap;
+            margin: var(--spacing-lg) 0;
         }
 
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+        .player-result-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-md);
+            background: var(--color-surface);
+            border: 2px solid var(--color-border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s var(--bounce);
+        }
+
+        .player-result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .player-result-card.selected {
+            background: var(--color-success-light);
+            border-color: var(--color-success);
+        }
+
+        .player-result-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .player-result-name {
+            font-weight: 500;
+            font-size: 1.1em;
+        }
+
+        .player-result-level {
+            font-size: 0.9em;
+            color: var(--color-text-secondary);
+        }
+
+        .winner-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--color-text-secondary);
+            opacity: 0.5;
+            transition: all 0.2s ease;
+        }
+
+        .player-result-card.selected .winner-indicator {
+            color: var(--color-success);
+            opacity: 1;
+        }
+
+        .checkmark {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--color-surface);
+            border: 2px solid currentColor;
+        }
+
+        .player-result-card.selected .checkmark {
+            background: var(--color-success);
+            color: white;
+            border-color: var(--color-success);
+        }
+
+        .result-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        .submit-results,
+        .cancel-results {
+            flex: 1;
+            padding: var(--spacing-md);
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .submit-results {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .submit-results:hover {
+            background: #0ca678;
+        }
+
+        .cancel-results {
+            background: var(--color-surface);
+            color: var(--color-text);
+        }
+
+        .cancel-results:hover {
+            background: #e9ecef;
         }
 
         /* Keyboard shortcut hints */
@@ -946,8 +1085,6 @@
 
         /* Make courts container scrollable too */
         .courts-container {
-            height: 100%;
-            overflow-y: auto;
         }
 
         .courts-container h2 {
@@ -962,37 +1099,7 @@
         /* Scrollbar styling */
         .player-pool #availablePlayers,
         .courts-container {
-            scrollbar-width: thin;
-            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-        }
-
-        /* For Webkit browsers (Chrome, Safari, etc) */
-        .player-pool #availablePlayers::-webkit-scrollbar,
-        .courts-container::-webkit-scrollbar {
-            width: var(--scrollbar-width);
-        }
-
-        .player-pool #availablePlayers::-webkit-scrollbar-track,
-        .courts-container::-webkit-scrollbar-track {
-            background: var(--scrollbar-track);
-            border-radius: var(--scrollbar-width);
-        }
-
-        .player-pool #availablePlayers::-webkit-scrollbar-thumb,
-        .courts-container::-webkit-scrollbar-thumb {
-            background: var(--scrollbar-thumb);
-            border-radius: var(--scrollbar-width);
-        }
-
-        .player-pool #availablePlayers::-webkit-scrollbar-thumb:hover,
-        .courts-container::-webkit-scrollbar-thumb:hover {
-            background: #A0AEC0;
-        }
-
-        /* Update container padding to account for scrollbar */
-        .player-pool #availablePlayers,
-        .courts-container {
-            padding-right: calc(var(--spacing-md) + var(--scrollbar-width));
+            padding-right: var(--spacing-md);
         }
 
         /* Add/update these styles */
@@ -1047,43 +1154,354 @@
         /* Update mobile styles */
         @media (max-width: 768px) {
             body {
-                padding-bottom: 80px; /* Account for bottom nav */
+                padding-bottom: 80px;
             }
 
             .container {
                 grid-template-columns: 1fr;
-                height: calc(100vh - 180px);
             }
 
-            /* Hide desktop controls */
-            .controls {
-                display: none;
-            }
-
-            /* Always show courts container */
             .courts-container {
-                display: block !important;
-                height: 100%;
-                overflow-y: auto;
-                padding-bottom: var(--spacing-xl);
             }
 
-            /* Show bottom nav */
             .bottom-nav {
                 display: block;
             }
 
-            /* Hide player pool by default */
             .player-pool {
-                display: none;
             }
         }
 
-        /* Add this to your existing media queries in the style section */
-        @media (max-width: 768px) {
-            .courts-container {
-                display: block !important; /* Ensure courts are always visible on mobile */
-            }
+        /* Status Tags */
+        .status-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 500;
+        }
+
+        .status-tag::before {
+            content: "";
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        /* Active Game Status */
+        .status-tag.in-game {
+            background: var(--color-success-light);
+            color: var(--color-success);
+        }
+
+        .status-tag.in-game::before {
+            background: var(--color-success);
+        }
+
+        /* Waiting Status */
+        .status-tag.waiting {
+            background: #fff3bf;
+            color: #fab005;
+        }
+
+        .status-tag.waiting::before {
+            background: #fab005;
+        }
+
+        /* Resting Status */
+        .status-tag.resting {
+            background: #e3fafc;
+            color: #15aabf;
+        }
+
+        .status-tag.resting::before {
+            background: #15aabf;
+        }
+
+        /* Inactive Status */
+        .status-tag.inactive {
+            background: #f1f3f5;
+            color: #adb5bd;
+        }
+
+        .status-tag.inactive::before {
+            background: #adb5bd;
+        }
+
+        /* Game Count Indicator */
+        .game-dots {
+            display: flex;
+            gap: 3px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .game-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--color-border);
+        }
+
+        /* Win/Loss colors */
+        .game-dot.win {
+            background: var(--color-success);
+        }
+
+        .game-dot.loss {
+            background: var(--color-error);
+        }
+
+        /* Max dots to show before condensing */
+        .game-count-overflow {
+            font-size: 0.75em;
+            color: var(--color-text-secondary);
+            margin-left: 4px;
+            align-self: center;
+        }
+
+        /* Update player stats container */
+        .player-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .player-stats-text {
+            font-size: 0.85em;
+            color: var(--color-text-secondary);
+        }
+
+        /* Add this to ensure child elements don't interfere with drag events */
+        .court * {
+            pointer-events: none;
+        }
+
+        /* Re-enable pointer events for interactive elements */
+        .court button,
+        .court .court-add-player,
+        .court input,
+        .court select {
+            pointer-events: auto;
+        }
+
+        /* Add a subtle animation to show it's a drop target */
+        .court:not(.dragover):hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Add these styles to prevent hidden modals from interfering with drag and drop */
+        .modal[style*="display: none"],
+        .game-result-dialog[style*="display: none"],
+        .player-search-modal[style*="display: none"],
+        .dialog-overlay[style*="display: none"] {
+            pointer-events: none;
+        }
+
+        /* Also ensure visible modals have proper pointer events */
+        .modal,
+        .game-result-dialog,
+        .player-search-modal,
+        .dialog-overlay {
+            pointer-events: auto;
+        }
+
+        /* And ensure the overlay blocks all events when visible */
+        .dialog-overlay:not([style*="display: none"]) {
+            pointer-events: all;
+        }
+
+        /* Add these styles for the count indicators */
+        .filter-chip .count {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 6px;
+            font-size: 0.85em;
+        }
+
+        .filter-chip.active .count {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Add these styles for the add player modal level chips */
+        .add-player-levels {
+            display: grid;
+            gap: var(--spacing-sm);
+            margin: var(--spacing-md) 0;
+        }
+
+        .level-chip {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md);
+            border: 2px solid var(--color-border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s var(--bounce);
+            background: var(--color-surface);
+        }
+
+        .level-chip:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .level-chip.selected {
+            background: var(--color-success-light);
+            border-color: var(--color-success);
+        }
+
+        .level-chip-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .level-name {
+            font-weight: 500;
+            font-size: 1.1em;
+        }
+
+        .level-description {
+            font-size: 0.9em;
+            color: var(--color-text-secondary);
+        }
+
+        .level-count {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            color: var(--color-text-secondary);
+        }
+
+        .level-chip.selected .level-count {
+            background: var(--color-success);
+            color: white;
+        }
+
+        /* Add these styles for the clear data button and confirmation dialog */
+        .danger-zone {
+            margin-top: var(--spacing-xl);
+            padding: var(--spacing-md);
+            border: 1px dashed var(--color-error);
+            border-radius: 8px;
+            background: #fff5f5;
+        }
+
+        .danger-zone h3 {
+            color: var(--color-error);
+            margin: 0 0 var(--spacing-sm);
+            font-size: 1em;
+        }
+
+        .clear-data-btn {
+            background: var(--color-error);
+            color: white;
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+        }
+
+        .clear-data-btn:hover {
+            background: #e03131;
+        }
+
+        .confirm-dialog {
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .confirm-dialog p {
+            margin: var(--spacing-md) 0;
+            color: var(--color-text-secondary);
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        .confirm-actions button {
+            flex: 1;
+            padding: var(--spacing-md);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .confirm-delete {
+            background: var(--color-error);
+            color: white;
+        }
+
+        .confirm-delete:hover {
+            background: #e03131;
+        }
+
+        .confirm-cancel {
+            background: var(--color-surface);
+            color: var(--color-text);
+        }
+
+        .confirm-cancel:hover {
+            background: #e9ecef;
+        }
+
+        /* Update the modal styles */
+        .modal {
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        /* Add styles for the modal content */
+        .modal-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 var(--spacing-md);
+            margin: var(--spacing-md) 0;
+        }
+
+        /* Update form actions to stay at bottom */
+        .form-actions {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: var(--spacing-md);
+            border-top: 1px solid var(--color-border);
+            margin: 0 calc(-1 * var(--spacing-md));
+            z-index: 2;
+        }
+
+        /* Update level chip styles */
+        .level-chip {
+            position: relative;
+        }
+
+        .level-chip::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            cursor: pointer;
+        }
+
+        /* Add hover state for better feedback */
+        .level-chip:not(.selected):hover {
+            border-color: var(--color-primary);
+            background: var(--color-surface);
         }
     </style>
     <script>
@@ -1131,19 +1549,44 @@
                 <button onclick="addNewPlayer()">Add First Player</button>
             </div>
             <div class="player-pool-controls">
-                <input type="text" 
-                       class="search-box" 
-                       id="playerSearch" 
-                       placeholder="Search players..."
-                       oninput="updateDisplay()">
-                <div class="sort-filter-options">
-                    <select id="sortBy" onchange="updateDisplay()">
-                        <option value="gamesAsc">Games (Least to Most)</option>
-                        <option value="gamesDesc">Games (Most to Least)</option>
-                        <option value="levelAsc">Level (Low to High)</option>
-                        <option value="levelDesc">Level (High to Low)</option>
-                        <option value="name">Name</option>
-                    </select>
+                <div class="filter-section">
+                    <input type="text" 
+                           class="search-box" 
+                           id="playerSearch" 
+                           placeholder="Search players..."
+                           oninput="updateDisplay()">
+                </div>
+                
+                <div class="filter-section">
+                    <span class="filter-label">Status</span>
+                    <div class="filter-chips" id="statusFilters">
+                        <button class="filter-chip active" data-status="all">All</button>
+                        <button class="filter-chip" data-status="available">Available</button>
+                        <button class="filter-chip" data-status="new">New Players</button>
+                        <button class="filter-chip" data-status="resting">Resting</button>
+                        <button class="filter-chip" data-status="inactive">Inactive</button>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <span class="filter-label">Level</span>
+                    <div class="filter-chips" id="levelFilters">
+                        <button class="filter-chip active" data-level="all">All</button>
+                        <button class="filter-chip" data-level="1">Beginner</button>
+                        <button class="filter-chip" data-level="2">Intermediate</button>
+                        <button class="filter-chip" data-level="3">Advanced</button>
+                        <button class="filter-chip" data-level="4,5">Expert+</button>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <span class="filter-label">Sort By</span>
+                    <div class="filter-chips" id="sortFilters">
+                        <button class="filter-chip active" data-sort="waiting">Waiting Longest</button>
+                        <button class="filter-chip" data-sort="games-asc">Least Games</button>
+                        <button class="filter-chip" data-sort="games-desc">Most Games</button>
+                        <button class="filter-chip" data-sort="winrate">Best Win Rate</button>
+                    </div>
                 </div>
             </div>
             <div id="availablePlayers"></div>
@@ -1187,44 +1630,61 @@
         <button class="modal-close" onclick="closeAddPlayerDialog()">×</button>
         <h3>Add New Player</h3>
         <form onsubmit="handleAddPlayer(event)">
-            <div class="form-group">
-                <label for="newPlayerName">Player Name</label>
-                <input 
-                    type="text" 
-                    id="newPlayerName" 
-                    placeholder="Enter player name"
-                    required
-                    autocomplete="off"
-                    autofocus>
-            </div>
-            <div class="form-group">
-                <label>Skill Level</label>
-                <div class="level-selector">
-                    <div class="level-option" data-value="1" onclick="selectLevel(1)">
-                        <h4>Beginner</h4>
-                        <p>Learning the basics, new to the game</p>
-                    </div>
-                    <div class="level-option" data-value="2" onclick="selectLevel(2)">
-                        <h4>Intermediate</h4>
-                        <p>Can maintain consistent rallies</p>
-                    </div>
-                    <div class="level-option" data-value="3" onclick="selectLevel(3)">
-                        <h4>Advanced</h4>
-                        <p>Good game control and strategy</p>
-                    </div>
-                    <div class="level-option" data-value="4" onclick="selectLevel(4)">
-                        <h4>Expert</h4>
-                        <p>Strong all-around player</p>
-                    </div>
-                    <div class="level-option" data-value="5" onclick="selectLevel(5)">
-                        <h4>Pro</h4>
-                        <p>Tournament level player</p>
+            <div class="modal-content">
+                <div class="form-group">
+                    <label for="newPlayerName">Player Name</label>
+                    <input 
+                        type="text" 
+                        id="newPlayerName" 
+                        placeholder="Enter player name"
+                        required
+                        autocomplete="off"
+                        autofocus>
+                </div>
+                <div class="form-group">
+                    <label>Skill Level</label>
+                    <div class="add-player-levels" id="addPlayerLevels">
+                        <div class="level-chip" data-level="1" onclick="selectLevel(1)">
+                            <div class="level-chip-content">
+                                <span class="level-name">Beginner</span>
+                                <span class="level-description">Learning the basics, new to the game</span>
+                            </div>
+                            <span class="level-count">0</span>
+                        </div>
+                        <div class="level-chip" data-level="2" onclick="selectLevel(2)">
+                            <div class="level-chip-content">
+                                <span class="level-name">Intermediate</span>
+                                <span class="level-description">Can maintain consistent rallies</span>
+                            </div>
+                            <span class="level-count">0</span>
+                        </div>
+                        <div class="level-chip" data-level="3" onclick="selectLevel(3)">
+                            <div class="level-chip-content">
+                                <span class="level-name">Advanced</span>
+                                <span class="level-description">Good game control and strategy</span>
+                            </div>
+                            <span class="level-count">0</span>
+                        </div>
+                        <div class="level-chip" data-level="4" onclick="selectLevel(4)">
+                            <div class="level-chip-content">
+                                <span class="level-name">Expert</span>
+                                <span class="level-description">Strong all-around player</span>
+                            </div>
+                            <span class="level-count">0</span>
+                        </div>
+                        <div class="level-chip" data-level="5" onclick="selectLevel(5)">
+                            <div class="level-chip-content">
+                                <span class="level-name">Pro</span>
+                                <span class="level-description">Tournament level player</span>
+                            </div>
+                            <span class="level-count">0</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="form-actions">
-                <button type="submit">Add Player</button>
-                <button type="button" onclick="closeAddPlayerDialog()">Cancel</button>
+                <button type="submit" class="submit-btn">Add Player</button>
+                <button type="button" class="cancel-btn" onclick="closeAddPlayerDialog()">Cancel</button>
             </div>
         </form>
     </div>
@@ -1289,6 +1749,28 @@ Mike Johnson"
             <button onclick="showGameHistory()">
                 <span>History</span>
             </button>
+            <button onclick="showCourts()">
+                <span>Courts</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="danger-zone">
+        <h3>Danger Zone</h3>
+        <p>Clear all data including players, games, and history. This action cannot be undone.</p>
+        <button class="clear-data-btn" onclick="showClearDataConfirmation()">
+            Clear All Data
+        </button>
+    </div>
+
+    <div id="clearDataDialog" class="modal" style="display: none;">
+        <div class="confirm-dialog">
+            <h3>Clear All Data?</h3>
+            <p>This will permanently delete all players, games, and history. This action cannot be undone.</p>
+            <div class="confirm-actions">
+                <button class="confirm-delete" onclick="clearAllData()">Yes, Clear Everything</button>
+                <button class="confirm-cancel" onclick="closeClearDataDialog()">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -1336,39 +1818,186 @@ Mike Johnson"
         // Start timer updates
         setInterval(updateTimers, 1000);
 
+        // Add these variables at the top with other globals
+        let activeFilters = {
+            status: 'all',
+            level: 'all',
+            sort: 'waiting'
+        };
+
+        // Add this function to handle filter clicks
+        function handleFilterClick(event) {
+            const chip = event.target;
+            if (!chip.classList.contains('filter-chip')) return;
+            
+            // Update active state in the chip group
+            const group = chip.parentElement;
+            group.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            
+            // Update active filters
+            if (group.id === 'statusFilters') activeFilters.status = chip.dataset.status;
+            if (group.id === 'levelFilters') activeFilters.level = chip.dataset.level;
+            if (group.id === 'sortFilters') activeFilters.sort = chip.dataset.sort;
+            
+            updateDisplay();
+        }
+
+        // Update the sortAndFilterPlayers function
         function sortAndFilterPlayers(players) {
             const searchTerm = document.getElementById('playerSearch').value.toLowerCase();
-            const sortBy = document.getElementById('sortBy').value;
+            
+            // Filter players
+            let filtered = players.filter(p => {
+                const matchesSearch = p.name.toLowerCase().includes(searchTerm);
+                
+                // Status filtering
+                if (activeFilters.status !== 'all') {
+                    const isInGame = courts.some(court => 
+                        court.startTime && court.players.some(cp => cp.id === p.id)
+                    );
+                    const lastGame = gameHistory
+                        .slice()
+                        .reverse()
+                        .find(game => game.players.some(gp => gp.name === p.name));
+                    const timeSinceLastGame = lastGame 
+                        ? Date.now() - new Date(lastGame.date).getTime()
+                        : null;
 
-            let filtered = players.filter(p => 
-                p.name.toLowerCase().includes(searchTerm)
-            );
+                    switch (activeFilters.status) {
+                        case 'available':
+                            if (isInGame || (timeSinceLastGame && timeSinceLastGame < 10 * 60 * 1000)) return false;
+                            break;
+                        case 'new':
+                            if (p.gamesPlayed > 0) return false;
+                            break;
+                        case 'resting':
+                            if (!timeSinceLastGame || timeSinceLastGame >= 10 * 60 * 1000) return false;
+                            break;
+                        case 'inactive':
+                            if (!timeSinceLastGame || timeSinceLastGame <= 30 * 60 * 1000) return false;
+                            break;
+                    }
+                }
 
+                // Level filtering
+                if (activeFilters.level !== 'all') {
+                    const levels = activeFilters.level.split(',').map(Number);
+                    if (!levels.includes(p.level)) return false;
+                }
+
+                return matchesSearch;
+            });
+
+            // Sort players
             filtered.sort((a, b) => {
-                switch (sortBy) {
-                    case 'gamesAsc':
+                switch (activeFilters.sort) {
+                    case 'waiting':
+                        const aLastGame = gameHistory.findLast(g => g.players.some(p => p.name === a.name));
+                        const bLastGame = gameHistory.findLast(g => g.players.some(p => p.name === b.name));
+                        return (aLastGame?.date || 0) - (bLastGame?.date || 0);
+                    case 'games-asc':
                         return a.gamesPlayed - b.gamesPlayed;
-                    case 'gamesDesc':
+                    case 'games-desc':
                         return b.gamesPlayed - a.gamesPlayed;
-                    case 'levelAsc':
-                        return a.level - b.level;
-                    case 'levelDesc':
-                        return b.level - a.level;
-                    case 'name':
-                        return a.name.localeCompare(b.name);
-                    default:
-                        return 0;
+                    case 'winrate':
+                        const aWinRate = a.gamesPlayed ? (a.wins / a.gamesPlayed) : 0;
+                        const bWinRate = b.gamesPlayed ? (b.wins / b.gamesPlayed) : 0;
+                        return bWinRate - aWinRate;
                 }
             });
 
             return filtered;
         }
 
+        // Add this function to count players for each filter
+        function getFilterCounts(players) {
+            const counts = {
+                status: {
+                    all: players.length,
+                    available: 0,
+                    new: 0,
+                    resting: 0,
+                    inactive: 0
+                },
+                level: {
+                    all: players.length,
+                    1: 0,
+                    2: 0,
+                    3: 0,
+                    '4,5': 0
+                }
+            };
+
+            players.forEach(p => {
+                // Status counts
+                const isInGame = courts.some(court => 
+                    court.startTime && court.players.some(cp => cp.id === p.id)
+                );
+                const lastGame = gameHistory
+                    .slice()
+                    .reverse()
+                    .find(game => game.players.some(gp => gp.name === p.name));
+                const timeSinceLastGame = lastGame 
+                    ? Date.now() - new Date(lastGame.date).getTime()
+                    : null;
+
+                if (!isInGame && (!timeSinceLastGame || timeSinceLastGame >= 10 * 60 * 1000)) {
+                    counts.status.available++;
+                }
+                if (p.gamesPlayed === 0) {
+                    counts.status.new++;
+                }
+                if (timeSinceLastGame && timeSinceLastGame < 10 * 60 * 1000) {
+                    counts.status.resting++;
+                }
+                if (timeSinceLastGame && timeSinceLastGame > 30 * 60 * 1000) {
+                    counts.status.inactive++;
+                }
+
+                // Level counts
+                if (p.level <= 3) {
+                    counts.level[p.level]++;
+                } else {
+                    counts.level['4,5']++;
+                }
+            });
+
+            return counts;
+        }
+
+        // Update the updateDisplay function to include counts
         function updateDisplay() {
-            // Update available players with sorting and filtering
             const availablePlayers = players.filter(p => 
                 !courts.some(court => court.players.some(cp => cp.id === p.id))
             );
+            
+            // Update filter counts
+            const filterCounts = getFilterCounts(availablePlayers);
+            
+            // Update status filter chips
+            document.querySelectorAll('#statusFilters .filter-chip').forEach(chip => {
+                const status = chip.dataset.status;
+                const count = filterCounts.status[status];
+                const countSpan = chip.querySelector('.count') || document.createElement('span');
+                countSpan.className = 'count';
+                countSpan.textContent = count;
+                if (!chip.querySelector('.count')) {
+                    chip.appendChild(countSpan);
+                }
+            });
+
+            // Update level filter chips
+            document.querySelectorAll('#levelFilters .filter-chip').forEach(chip => {
+                const level = chip.dataset.level;
+                const count = filterCounts.level[level];
+                const countSpan = chip.querySelector('.count') || document.createElement('span');
+                countSpan.className = 'count';
+                countSpan.textContent = count;
+                if (!chip.querySelector('.count')) {
+                    chip.appendChild(countSpan);
+                }
+            });
             
             const sortedAndFiltered = sortAndFilterPlayers(availablePlayers);
             
@@ -1380,7 +2009,8 @@ Mike Johnson"
                 <div class="court" 
                      id="court-${i}" 
                      ondrop="drop(event)" 
-                     ondragover="allowDrop(event)">
+                     ondragover="allowDrop(event)"
+                     ondragleave="dragLeave(event)">
                     <div class="court-header">
                         <h3>Court ${i + 1} (${court.players.length} players)</h3>
                         <div class="court-controls">
@@ -1404,7 +2034,7 @@ Mike Johnson"
                         </div>
                     </div>
                     <div class="player-cards">
-                        ${court.players.map(createPlayerCard).join('')}
+                        ${court.players.map(player => createPlayerCard(player)).join('')}
                     </div>
                     ${court.players.length < 4 && !court.startTime ? `
                         <div class="court-add-player" onclick="showPlayerSearch(${i})">
@@ -1417,7 +2047,23 @@ Mike Johnson"
 
         function allowDrop(ev) {
             ev.preventDefault();
-            ev.currentTarget.classList.add('dragover');
+            
+            // Find the court element
+            let courtElement = ev.target;
+            while (courtElement && !courtElement.classList.contains('court')) {
+                courtElement = courtElement.parentElement;
+            }
+            
+            if (courtElement) {
+                const courtIndex = parseInt(courtElement.id.replace('court-', ''));
+                const court = courts[courtIndex];
+                
+                // Only show drop indicator if court is not full and game not started
+                if (court && court.players.length < 4 && !court.startTime) {
+                    courtElement.classList.add('dragover');
+                    courtElement.classList.add('can-drop');
+                }
+            }
         }
 
         function drag(ev) {
@@ -1431,7 +2077,21 @@ Mike Johnson"
                 return;
             }
             
+            // Add visual feedback for the dragged card
+            ev.target.classList.add('dragging');
             ev.dataTransfer.setData("playerId", ev.target.id);
+        }
+
+        function dragLeave(ev) {
+            let courtElement = ev.target;
+            while (courtElement && !courtElement.classList.contains('court')) {
+                courtElement = courtElement.parentElement;
+            }
+            
+            if (courtElement) {
+                courtElement.classList.remove('dragover');
+                courtElement.classList.remove('can-drop');
+            }
         }
 
         function drop(ev) {
@@ -1440,9 +2100,18 @@ Mike Johnson"
             
             const playerId = ev.dataTransfer.getData("playerId").replace('player-', '');
             const player = players.find(p => p.id === playerId);
-            const targetCourt = ev.currentTarget.id.replace('court-', '');
+            
+            // Get court index from the target element
+            let courtElement = ev.target;
+            while (courtElement && !courtElement.classList.contains('court')) {
+                courtElement = courtElement.parentElement;
+            }
+            
+            const courtIndex = courtElement 
+                ? parseInt(courtElement.id.replace('court-', ''))
+                : null;
 
-            // Remove player from current location
+            // Remove player from current location (if in a court)
             courts.forEach(court => {
                 const playerIndex = court.players.findIndex(p => p.id === playerId);
                 if (playerIndex !== -1) {
@@ -1450,11 +2119,17 @@ Mike Johnson"
                 }
             });
 
-            // Add to new court if dropped on court
-            if (targetCourt !== '') {
-                const courtIndex = parseInt(targetCourt);
-                if (!isNaN(courtIndex) && courts[courtIndex].players.length < 4) {
-                    courts[courtIndex].players.push(player);
+            // Add to new court if dropped on a court
+            if (courtIndex !== null && !isNaN(courtIndex)) {
+                const court = courts[courtIndex];
+                // Check if court exists and has space
+                if (court && court.players.length < 4 && !court.startTime) {
+                    court.players.push(player);
+                    showToast(`Added ${player.name} to Court ${courtIndex + 1}`);
+                } else if (court.startTime) {
+                    showToast('Cannot add player to active game', 'error');
+                } else if (court.players.length >= 4) {
+                    showToast('Court is full', 'error');
                 }
             }
 
@@ -1494,18 +2169,32 @@ Mike Johnson"
             const content = document.getElementById('gameResultContent');
 
             content.innerHTML = `
-                <p>Select winners for Court ${courtIndex + 1}:</p>
-                ${court.players.map(player => `
-                    <div>
-                        <input type="checkbox" 
-                               id="winner-${player.id}" 
-                               name="winners" 
-                               value="${player.id}">
-                        <label for="winner-${player.id}">
-                            ${player.name} (Level ${player.level})
-                        </label>
+                <div class="game-results">
+                    <div class="game-duration">
+                        Game Duration: ${getElapsedTime(court.startTime)}
                     </div>
-                `).join('')}
+                    <h4>Select Winners</h4>
+                    <div class="player-result-cards">
+                        ${court.players.map(player => `
+                            <div class="player-result-card" 
+                                 onclick="toggleWinner('${player.id}')"
+                                 data-player-id="${player.id}">
+                                <div class="player-result-info">
+                                    <span class="player-result-name">${player.name}</span>
+                                    <span class="player-result-level">Level ${player.level}</span>
+                                </div>
+                                <div class="winner-indicator">
+                                    <div class="checkmark">✓</div>
+                                    <span>Winner</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="result-actions">
+                        <button class="submit-results" onclick="submitGameResults()">Submit Results</button>
+                        <button class="cancel-results" onclick="closeGameResultDialog()">Cancel</button>
+                    </div>
+                </div>
             `;
 
             dialog.dataset.courtIndex = courtIndex;
@@ -1513,13 +2202,23 @@ Mike Johnson"
             overlay.style.display = 'block';
         }
 
+        function toggleWinner(playerId) {
+            const card = document.querySelector(`.player-result-card[data-player-id="${playerId}"]`);
+            card.classList.toggle('selected');
+        }
+
         function submitGameResults() {
             const dialog = document.getElementById('gameResultDialog');
             const courtIndex = parseInt(dialog.dataset.courtIndex);
             const court = courts[courtIndex];
             
-            const winners = Array.from(document.querySelectorAll('input[name="winners"]:checked'))
-                .map(input => input.value);
+            const winners = Array.from(document.querySelectorAll('.player-result-card.selected'))
+                .map(card => card.dataset.playerId);
+
+            if (winners.length === 0) {
+                showToast('Please select at least one winner', 'error');
+                return;
+            }
 
             // Record game in history
             const gameEntry = {
@@ -1557,19 +2256,18 @@ Mike Johnson"
             document.getElementById('dialogOverlay').style.display = 'none';
             
             updateDisplay();
-            showGameHistory();
             showToast('Game results recorded successfully!');
         }
 
         function showGameHistory() {
-            document.querySelector('.player-pool').classList.remove('visible');
+            document.querySelector('.container').style.display = 'none';
             document.getElementById('gameHistory').style.display = 'block';
-            document.querySelector('.courts-container').style.display = 'none';
             
             // Update active state
             document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
             document.querySelector('.bottom-nav button:nth-child(3)').classList.add('active');
             
+            // Update history entries
             document.getElementById('historyEntries').innerHTML = 
                 gameHistory.map((game, index) => `
                     <div class="history-entry">
@@ -1584,20 +2282,88 @@ Mike Johnson"
                 `).join('');
         }
 
+        function showCourts() {
+            document.querySelector('.container').style.display = 'grid';
+            document.querySelector('.player-pool').style.display = 'flex';
+            document.getElementById('gameHistory').style.display = 'none';
+            document.querySelector('.courts-container').style.display = 'block';
+            
+            // Update active state for mobile nav
+            document.querySelectorAll('.bottom-nav button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.bottom-nav button:nth-child(4)').classList.add('active');
+            
+            updateDisplay();
+        }
+
+        // Call showCourts on initial load
+        window.addEventListener('load', () => {
+            showCourts();
+        });
+
         function createPlayerCard(player) {
             // Find if player is in an active game
             const isInGame = courts.some(court => 
                 court.startTime && court.players.some(p => p.id === player.id)
             );
 
+            // Calculate time since last game
+            const lastGame = gameHistory
+                .slice()
+                .reverse()
+                .find(game => game.players.some(p => p.name === player.name));
+            
+            const timeSinceLastGame = lastGame 
+                ? Date.now() - new Date(lastGame.date).getTime()
+                : null;
+
+            // Determine player status
+            let statusTag = '';
+            if (isInGame) {
+                statusTag = '<span class="status-tag in-game">In Game</span>';
+            } else if (timeSinceLastGame && timeSinceLastGame < 10 * 60 * 1000) { // 10 minutes
+                statusTag = '<span class="status-tag resting">Resting</span>';
+            } else if (player.gamesPlayed === 0) {
+                statusTag = '<span class="status-tag waiting">New Player</span>';
+            } else if (timeSinceLastGame && timeSinceLastGame > 30 * 60 * 1000) { // 30 minutes
+                statusTag = '<span class="status-tag inactive">Inactive</span>';
+            }
+
+            // Create game history dots
+            const MAX_DOTS = 10; // Maximum dots to show before using +X format
+            const gameDots = [];
+            
+            // Get last X games from history for this player
+            const playerGames = gameHistory
+                .slice()
+                .reverse()
+                .filter(game => game.players.some(p => p.name === player.name))
+                .slice(0, MAX_DOTS);
+
+            const dotsHtml = playerGames.length > 0 
+                ? playerGames.map(game => {
+                    const playerResult = game.players.find(p => p.name === player.name);
+                    return `<div class="game-dot ${playerResult.winner ? 'win' : 'loss'}" 
+                                title="${playerResult.winner ? 'Won' : 'Lost'} game on ${new Date(game.date).toLocaleDateString()}"></div>`;
+                }).join('')
+                : Array(Math.min(player.gamesPlayed, MAX_DOTS))
+                    .fill(`<div class="game-dot"></div>`)
+                    .join('');
+
+            const remainingGames = player.gamesPlayed - MAX_DOTS;
+            const overflowHtml = remainingGames > 0 
+                ? `<span class="game-count-overflow">+${remainingGames}</span>` 
+                : '';
+
             return `
                 <div class="player-card ${isInGame ? 'in-game' : ''}" 
                      draggable="${!isInGame}"
-                     ondragstart="${!isInGame ? 'drag(event)' : ''}"
+                     ondragstart="drag(event)"
+                     ondragend="dragEnd(event)"
                      id="player-${player.id}">
                     <div class="player-info" id="player-info-${player.id}">
                         <div class="player-name" onclick="${!isInGame ? `enableInlineEdit('${player.id}', 'name')` : ''}">
                             <span class="editable-text">${player.name}</span>
+                            ${statusTag}
                             ${!isInGame ? '<span class="edit-hint">✎</span>' : ''}
                         </div>
                         <div class="player-level" onclick="${!isInGame ? `enableInlineEdit('${player.id}', 'level')` : ''}">
@@ -1605,7 +2371,13 @@ Mike Johnson"
                             ${!isInGame ? '<span class="edit-hint">✎</span>' : ''}
                         </div>
                         <div class="player-stats">
-                            Games: ${player.gamesPlayed} | W/L: ${player.wins}/${player.losses}
+                            <div class="player-stats-text">
+                                Games: ${player.gamesPlayed} | W/L: ${player.wins}/${player.losses}
+                            </div>
+                            <div class="game-dots">
+                                ${dotsHtml}
+                                ${overflowHtml}
+                            </div>
                         </div>
                     </div>
                     <div class="player-edit-form" id="player-edit-${player.id}" style="display: none;">
@@ -1652,10 +2424,10 @@ Mike Johnson"
 
         function selectLevel(level) {
             selectedLevel = level;
-            document.querySelectorAll('.level-option').forEach(option => {
-                option.classList.remove('selected');
+            document.querySelectorAll('.level-chip').forEach(chip => {
+                chip.classList.remove('selected');
             });
-            document.querySelector(`.level-option[data-value="${level}"]`).classList.add('selected');
+            document.querySelector(`.level-chip[data-level="${level}"]`).classList.add('selected');
         }
 
         function showAddPlayerDialog() {
@@ -1663,9 +2435,10 @@ Mike Johnson"
             document.getElementById('dialogOverlay').style.display = 'block';
             document.getElementById('newPlayerName').focus();
             selectedLevel = null;
-            document.querySelectorAll('.level-option').forEach(option => {
-                option.classList.remove('selected');
+            document.querySelectorAll('.level-chip').forEach(chip => {
+                chip.classList.remove('selected');
             });
+            updateLevelCounts();
         }
 
         function closeAddPlayerDialog() {
@@ -1981,6 +2754,66 @@ Mike Johnson"
             showToast(`Added ${names.length} players successfully!`);
             closeBulkAddDialog();
             updateDisplay();
+        }
+
+        // Add event listeners for filters
+        document.addEventListener('DOMContentLoaded', () => {
+            ['statusFilters', 'levelFilters', 'sortFilters'].forEach(id => {
+                document.getElementById(id).addEventListener('click', handleFilterClick);
+            });
+        });
+
+        // Add this function to update level counts
+        function updateLevelCounts() {
+            const levelCounts = players.reduce((counts, player) => {
+                counts[player.level] = (counts[player.level] || 0) + 1;
+                return counts;
+            }, {});
+
+            document.querySelectorAll('.level-chip').forEach(chip => {
+                const level = parseInt(chip.dataset.level);
+                const count = levelCounts[level] || 0;
+                chip.querySelector('.level-count').textContent = count;
+            });
+        }
+
+        function showConfirmDialog() {
+            document.getElementById('confirmDialog').style.display = 'block';
+        }
+
+        function closeConfirmDialog() {
+            document.getElementById('confirmDialog').style.display = 'none';
+        }
+
+        function clearAllData() {
+            // Clear all data structures
+            players = [];
+            gameHistory = [];
+            courts = Array(COURTS_COUNT).fill().map(() => ({
+                players: [],
+                startTime: null
+            }));
+
+            // Clear localStorage
+            localStorage.removeItem('queueMasterState');
+
+            // Update display
+            updateDisplay();
+            closeClearDataDialog();
+            showToast('All data has been cleared');
+
+            // Return to courts view
+            showCourts();
+        }
+
+        function showClearDataConfirmation() {
+            document.getElementById('clearDataDialog').style.display = 'block';
+            document.getElementById('dialogOverlay').style.display = 'block';
+        }
+
+        function closeClearDataDialog() {
+            document.getElementById('clearDataDialog').style.display = 'none';
+            document.getElementById('dialogOverlay').style.display = 'none';
         }
     </script>
 </body>
