@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Badminton Queue Manager</title>
     <style>
         /* CSS Custom Properties for Apple-like Design System */
@@ -99,7 +99,9 @@
             padding-left: 32px; /* Space for icon */
             border: 1px solid var(--gray-3);
             border-radius: var(--radius-md);
-            font-size: 14px;
+            font-size: 16px; /* Minimum font size to prevent zoom on iOS */
+            -webkit-text-size-adjust: 100%; /* Prevent text size adjust on orientation change */
+            touch-action: manipulation; /* Prevent double-tap zoom */
         }
 
         .search-box::before {
@@ -2171,7 +2173,10 @@
                 const court = this.courts.get(courtId);
                 if (court && court.currentGame) {
                     if (court.currentGame.addPlayer(teamNumber, playerId)) {
-                        // Update player status to 'ready' instead of 'playing'
+                        // Remove resting and playing statuses when player is marked as ready
+                        this.playerManager.updatePlayerStatus(playerId, 'resting', false);
+                        this.playerManager.updatePlayerStatus(playerId, 'playing', false);
+                        // Add ready status and remove waiting status
                         this.playerManager.updatePlayerStatus(playerId, 'ready', true);
                         this.playerManager.updatePlayerStatus(playerId, 'waiting', false);
                         this.notifyListeners();
