@@ -871,6 +871,45 @@
         .form-actions button[type="button"]:hover {
             background: #e9ecef;
         }
+
+        /* Add these styles */
+        .bulk-textarea {
+            width: 100%;
+            padding: var(--spacing-md);
+            font-size: 1em;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            resize: vertical;
+            font-family: var(--font-primary);
+            background: white;
+        }
+
+        .bulk-textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .bulk-instructions {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-md);
+            font-size: 0.9em;
+        }
+
+        .bulk-level-select {
+            width: 100%;
+            padding: var(--spacing-sm);
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 1em;
+            background: white;
+        }
+
+        .bulk-level-select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
     </style>
     <script>
         // Register Service Worker
@@ -896,6 +935,10 @@
         <button onclick="addNewPlayer()">
             <span>Add New Player</span>
             <span class="shortcut-hint">A</span>
+        </button>
+        <button onclick="showBulkAddDialog()">
+            <span>Bulk Add Players</span>
+            <span class="shortcut-hint">B</span>
         </button>
         <button onclick="showGameHistory()">
             <span>Game History</span>
@@ -1019,6 +1062,38 @@
                oninput="searchCourtPlayers()">
         <div id="playerSearchResults" class="player-search-results"></div>
         <button onclick="closePlayerSearch()" style="margin-top: 16px;">Cancel</button>
+    </div>
+
+    <div id="bulkAddDialog" class="modal" style="display: none;">
+        <h3>Bulk Add Players</h3>
+        <p class="bulk-instructions">Paste a list of names, one per line. Each player will be added as Level 1.</p>
+        <form onsubmit="handleBulkAddPlayers(event)">
+            <div class="form-group">
+                <label for="bulkPlayerNames">Player Names</label>
+                <textarea 
+                    id="bulkPlayerNames" 
+                    placeholder="John Smith
+Jane Doe
+Mike Johnson"
+                    required
+                    rows="10"
+                    class="bulk-textarea"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="bulkPlayerLevel">Default Level</label>
+                <select id="bulkPlayerLevel" class="bulk-level-select">
+                    <option value="1">Level 1 - Beginner</option>
+                    <option value="2">Level 2 - Intermediate</option>
+                    <option value="3">Level 3 - Advanced</option>
+                    <option value="4">Level 4 - Expert</option>
+                    <option value="5">Level 5 - Pro</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit">Add Players</button>
+                <button type="button" onclick="closeBulkAddDialog()">Cancel</button>
+            </div>
+        </form>
     </div>
 
     <footer class="footer">
@@ -1647,6 +1722,68 @@
             } else {
                 showToast('Cannot add player to court', 'error');
             }
+        }
+
+        function showBulkAddDialog() {
+            document.getElementById('bulkAddDialog').style.display = 'block';
+            document.getElementById('dialogOverlay').style.display = 'block';
+            document.getElementById('bulkPlayerNames').focus();
+        }
+
+        function closeBulkAddDialog() {
+            document.getElementById('bulkAddDialog').style.display = 'none';
+            document.getElementById('dialogOverlay').style.display = 'none';
+            document.getElementById('bulkPlayerNames').value = '';
+        }
+
+        function handleBulkAddPlayers(event) {
+            event.preventDefault();
+            
+            const namesText = document.getElementById('bulkPlayerNames').value.trim();
+            const defaultLevel = parseInt(document.getElementById('bulkPlayerLevel').value);
+            
+            if (!namesText) {
+                showToast('Please enter player names', 'error');
+                return;
+            }
+
+            const names = namesText.split('\n')
+                .map(name => name.trim())
+                .filter(name => name.length > 0);
+
+            // Check for duplicates in the input
+            const uniqueNames = new Set(names);
+            if (uniqueNames.size !== names.length) {
+                showToast('Duplicate names found in input', 'error');
+                return;
+            }
+
+            // Check for existing names
+            const existingNames = new Set(players.map(p => p.name.toLowerCase()));
+            const duplicates = names.filter(name => 
+                existingNames.has(name.toLowerCase())
+            );
+
+            if (duplicates.length > 0) {
+                showToast(`Some players already exist: ${duplicates.join(', ')}`, 'error');
+                return;
+            }
+
+            // Add all players
+            names.forEach(name => {
+                players.push({
+                    id: Date.now() + Math.random().toString(36).substr(2, 9),
+                    name: name,
+                    level: defaultLevel,
+                    gamesPlayed: 0,
+                    wins: 0,
+                    losses: 0
+                });
+            });
+
+            showToast(`Added ${names.length} players successfully!`);
+            closeBulkAddDialog();
+            updateDisplay();
         }
     </script>
 </body>
