@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match Queue Manager MVP</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+        .player-pool {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .court {
+            background: #e9ecef;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            min-height: 100px;
+            position: relative;
+        }
+        .court-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .finish-game-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 0.9em;
+        }
+        .finish-game-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .game-result-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+        }
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+        .player-card {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            cursor: move;
+            user-select: none;
+        }
+        .player-card:hover {
+            background: #f1f3f5;
+        }
+        .player-stats {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        .court.dragover {
+            background: #d0ebff;
+            border: 2px dashed #339af0;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .game-history {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .history-entry {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .player-pool-controls {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 4px;
+        }
+        .sort-filter-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .timer {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        .timer.warning {
+            color: #f03e3e;
+            font-weight: bold;
+        }
+        .search-box {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        .court-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .start-game-btn {
+            background: #228be6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 0.9em;
+        }
+        .start-game-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+        .footer a {
+            color: #228be6;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Match Queue Manager</h1>
+
+    <div class="controls">
+        <button onclick="addNewPlayer()">Add New Player</button>
+        <button onclick="showGameHistory()">Show Game History</button>
+    </div>
+
+    <div class="container">
+        <div class="player-pool" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Available Players</h2>
+            <div class="player-pool-controls">
+                <input type="text" 
+                       class="search-box" 
+                       id="playerSearch" 
+                       placeholder="Search players..."
+                       oninput="updateDisplay()">
+                <div class="sort-filter-options">
+                    <select id="sortBy" onchange="updateDisplay()">
+                        <option value="gamesAsc">Games (Least to Most)</option>
+                        <option value="gamesDesc">Games (Most to Least)</option>
+                        <option value="levelAsc">Level (Low to High)</option>
+                        <option value="levelDesc">Level (High to Low)</option>
+                        <option value="name">Name</option>
+                    </select>
+                </div>
+            </div>
+            <div id="availablePlayers"></div>
+        </div>
+
+        <div class="courts-container">
+            <h2>Courts</h2>
+            <div id="courts"></div>
+        </div>
+    </div>
+
+    <div id="gameHistory" class="game-history" style="display: none;">
+        <h2>Game History</h2>
+        <div id="historyEntries"></div>
+    </div>
+
+    <div id="dialogOverlay" class="dialog-overlay"></div>
+    <div id="gameResultDialog" class="game-result-dialog">
+        <h3>Game Results</h3>
+        <div id="gameResultContent"></div>
+        <button onclick="submitGameResults()">Submit Results</button>
+    </div>
+
+    <footer class="footer">
+        by <a href="https://alexiscollado.com" target="_blank">Alexis Collado</a>
+    </footer>
+
+    <script>
+        let players = [];
+        let courts = [];
+        let gameHistory = [];
+        const COURTS_COUNT = 3;
+        const GAME_DURATION_WARNING = 20 * 60 * 1000; // 20 minutes in milliseconds
+
+        // Initialize courts with timer properties
+        function initializeCourts() {
+            courts = Array(COURTS_COUNT).fill().map(() => ({
+                players: [],
+                startTime: null
+            }));
+            updateDisplay();
+        }
+
+        function getElapsedTime(startTime) {
+            if (!startTime) return 'Not started';
+            const elapsed = Date.now() - startTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimers() {
+            courts.forEach((court, i) => {
+                if (court.players && court.players.length >= 2) {
+                    const timerElement = document.getElementById(`timer-${i}`);
+                    if (timerElement) {
+                        const elapsedTime = getElapsedTime(court.startTime);
+                        timerElement.textContent = elapsedTime;
+                        
+                        // Add warning class if game is running long
+                        if (court.startTime && (Date.now() - court.startTime) > GAME_DURATION_WARNING) {
+                            timerElement.classList.add('warning');
+                        }
+                    }
+                }
+            });
+        }
+
+        // Start timer updates
+        setInterval(updateTimers, 1000);
+
+        function sortAndFilterPlayers(players) {
+            const searchTerm = document.getElementById('playerSearch').value.toLowerCase();
+            const sortBy = document.getElementById('sortBy').value;
+
+            let filtered = players.filter(p => 
+                p.name.toLowerCase().includes(searchTerm)
+            );
+
+            filtered.sort((a, b) => {
+                switch (sortBy) {
+                    case 'gamesAsc':
+                        return a.gamesPlayed - b.gamesPlayed;
+                    case 'gamesDesc':
+                        return b.gamesPlayed - a.gamesPlayed;
+                    case 'levelAsc':
+                        return a.level - b.level;
+                    case 'levelDesc':
+                        return b.level - a.level;
+                    case 'name':
+                        return a.name.localeCompare(b.name);
+                    default:
+                        return 0;
+                }
+            });
+
+            return filtered;
+        }
+
+        function updateDisplay() {
+            // Update available players with sorting and filtering
+            const availablePlayers = players.filter(p => 
+                !courts.some(court => court.players.some(cp => cp.id === p.id))
+            );
+            
+            const sortedAndFiltered = sortAndFilterPlayers(availablePlayers);
+            
+            document.getElementById('availablePlayers').innerHTML = 
+                sortedAndFiltered.map(createPlayerCard).join('');
+
+            // Update courts
+            document.getElementById('courts').innerHTML = courts.map((court, i) => `
+                <div class="court" 
+                     id="court-${i}" 
+                     ondrop="drop(event)" 
+                     ondragover="allowDrop(event)">
+                    <div class="court-header">
+                        <h3>Court ${i + 1} (${court.players.length} players)</h3>
+                        <div class="court-controls">
+                            <div class="timer" id="timer-${i}">
+                                ${court.startTime ? getElapsedTime(court.startTime) : 'Not started'}
+                            </div>
+                            ${!court.startTime ? `
+                                <button 
+                                    class="start-game-btn" 
+                                    onclick="startGame(${i})"
+                                    ${court.players.length < 2 ? 'disabled' : ''}>
+                                    Start Game
+                                </button>
+                            ` : `
+                                <button 
+                                    class="finish-game-btn" 
+                                    onclick="finishCourtGame(${i})">
+                                    Finish Game
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                    ${court.players.map(createPlayerCard).join('')}
+                </div>
+            `).join('');
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.add('dragover');
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("playerId", ev.target.id);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.remove('dragover');
+            
+            const playerId = ev.dataTransfer.getData("playerId").replace('player-', '');
+            const player = players.find(p => p.id === playerId);
+            const targetCourt = ev.currentTarget.id.replace('court-', '');
+
+            // Remove player from current location
+            courts.forEach(court => {
+                const playerIndex = court.players.findIndex(p => p.id === playerId);
+                if (playerIndex !== -1) {
+                    court.players.splice(playerIndex, 1);
+                }
+            });
+
+            // Add to new court if dropped on court
+            if (targetCourt !== '') {
+                const courtIndex = parseInt(targetCourt);
+                if (!isNaN(courtIndex) && courts[courtIndex].players.length < 4) {
+                    courts[courtIndex].players.push(player);
+                }
+            }
+
+            updateDisplay();
+        }
+
+        function startGame(courtIndex) {
+            const court = courts[courtIndex];
+            if (court.players.length < 2) {
+                alert('Need at least 2 players to start a game!');
+                return;
+            }
+            
+            court.startTime = Date.now();
+            updateDisplay();
+        }
+
+        function finishCourtGame(courtIndex) {
+            const court = courts[courtIndex];
+            if (!court.startTime) {
+                alert('Game has not been started yet!');
+                return;
+            }
+            if (court.players.length < 2) {
+                alert('Not enough players to finish a game!');
+                return;
+            }
+
+            showGameResultDialog(courtIndex);
+        }
+
+        function showGameResultDialog(courtIndex) {
+            const court = courts[courtIndex];
+            const dialog = document.getElementById('gameResultDialog');
+            const overlay = document.getElementById('dialogOverlay');
+            const content = document.getElementById('gameResultContent');
+
+            content.innerHTML = `
+                <p>Select winners for Court ${courtIndex + 1}:</p>
+                ${court.players.map(player => `
+                    <div>
+                        <input type="checkbox" 
+                               id="winner-${player.id}" 
+                               name="winners" 
+                               value="${player.id}">
+                        <label for="winner-${player.id}">
+                            ${player.name} (Level ${player.level})
+                        </label>
+                    </div>
+                `).join('')}
+            `;
+
+            dialog.dataset.courtIndex = courtIndex;
+            dialog.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+
+        function submitGameResults() {
+            const dialog = document.getElementById('gameResultDialog');
+            const courtIndex = parseInt(dialog.dataset.courtIndex);
+            const court = courts[courtIndex];
+            
+            const winners = Array.from(document.querySelectorAll('input[name="winners"]:checked'))
+                .map(input => input.value);
+
+            // Record game in history
+            const gameEntry = {
+                date: new Date(),
+                courtNumber: courtIndex + 1,
+                players: court.players.map(p => ({
+                    name: p.name,
+                    level: p.level,
+                    winner: winners.includes(p.id)
+                }))
+            };
+            gameHistory.push(gameEntry);
+
+            // Update player stats
+            court.players.forEach(player => {
+                const p = players.find(p => p.id === player.id);
+                if (p) {
+                    p.gamesPlayed++;
+                    if (winners.includes(player.id)) {
+                        p.wins++;
+                    } else {
+                        p.losses++;
+                    }
+                }
+            });
+
+            // Clear just this court
+            courts[courtIndex] = {
+                players: [],
+                startTime: null
+            };
+            
+            // Close dialog
+            dialog.style.display = 'none';
+            document.getElementById('dialogOverlay').style.display = 'none';
+            
+            updateDisplay();
+            showGameHistory();
+        }
+
+        function showGameHistory() {
+            const historyDiv = document.getElementById('gameHistory');
+            historyDiv.style.display = 'block';
+            
+            document.getElementById('historyEntries').innerHTML = 
+                gameHistory.map((game, index) => `
+                    <div class="history-entry">
+                        <strong>Game ${index + 1}</strong> - 
+                        Court ${game.courtNumber} - 
+                        ${new Date(game.date).toLocaleString()}
+                        <br>
+                        Players: ${game.players.map(p => 
+                            `${p.name} (Level ${p.level})`
+                        ).join(', ')}
+                    </div>
+                `).join('');
+        }
+
+        function createPlayerCard(player) {
+            return `
+                <div class="player-card" 
+                     draggable="true" 
+                     ondragstart="drag(event)" 
+                     id="player-${player.id}">
+                    <div>${player.name} (Level ${player.level})</div>
+                    <div class="player-stats">
+                        Games: ${player.gamesPlayed} | 
+                        W/L: ${player.wins}/${player.losses}
+                    </div>
+                </div>
+            `;
+        }
+
+        function addNewPlayer() {
+            const name = prompt("Enter player name:");
+            const level = parseInt(prompt("Enter player level (1-5):", "3"));
+            
+            if (name && !isNaN(level) && level >= 1 && level <= 5) {
+                players.push({
+                    id: Date.now().toString(),
+                    name: name,
+                    level: level,
+                    gamesPlayed: 0,
+                    wins: 0,
+                    losses: 0
+                });
+                updateDisplay();
+            }
+        }
+
+        // Initialize the app
+        initializeCourts();
+    </script>
+</body>
+</html> 
