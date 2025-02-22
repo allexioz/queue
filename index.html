@@ -225,9 +225,9 @@
             gap: 4px;
             padding: 2px 8px;
             border-radius: 12px;
-            background: #EEF2FF;  /* Light indigo background */
-            color: #4F46E5;  /* Indigo text color */
-            border: 1px solid #4F46E5;  /* Indigo border */
+            background: var(--gray-4);
+            color: var(--gray-1);
+            border: 1px solid var(--gray-3);
             font-size: 12px;
             font-weight: 600;
             height: 20px;
@@ -386,8 +386,9 @@
             font-size: 12px;
             padding: 2px 8px;
             border-radius: 10px;
-            background: var(--success);
-            color: white;
+            background: var(--gray-4);
+            color: var(--gray-1);
+            border: 1px solid var(--gray-3);
         }
 
         .court-actions {
@@ -1805,6 +1806,73 @@
             color: white;
             border-color: var(--danger);
         }
+
+        .filter-bar {
+            margin-bottom: var(--spacing-md);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: var(--spacing-xs);
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-xs);
+            background: var(--gray-4);
+            border-radius: var(--radius-lg);
+        }
+
+        .filter-chip {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: none;
+            background: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            color: var(--gray-1);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .filter-chip:hover {
+            background: var(--gray-3);
+        }
+
+        .filter-chip.active {
+            background: var(--background);
+            color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .status-icon {
+            font-size: 16px;
+        }
+
+        @media (max-width: 640px) {
+            .filter-bar {
+                margin: 0 calc(-1 * var(--spacing-md)) var(--spacing-md);
+            }
+            
+            .filter-chips {
+                padding: var(--spacing-xs) var(--spacing-md);
+                border-radius: 0;
+            }
+        }
+
+        /* Add full-width button style */
+        .button.full-width {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Update game-actions container */
+        .game-actions {
+            padding: 0 var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
     </style>
 </head>
 <body>
@@ -1848,7 +1916,7 @@
             <div class="main-header">
                 <h1 class="main-header-title">Badminton Queue Manager</h1>
                 <div class="main-header-actions">
-                    <button class="button" id="addCourtBtn">Add Court</button>
+                    <button class="button secondary" id="addCourtBtn">Add Court</button>
                 </div>
             </div>
             <div class="courts-container">
@@ -1906,6 +1974,22 @@
             <h2>Select Player</h2>
         </div>
         <div class="dialog-content">
+            <div class="filter-bar">
+                <div class="filter-chips">
+                    <button class="filter-chip active" data-filter="all">
+                        All Players
+                    </button>
+                    <button class="filter-chip" data-filter="waiting">
+                        <span class="status-icon">⌛</span> Waiting
+                    </button>
+                    <button class="filter-chip" data-filter="playing">
+                        <span class="status-icon">🏸</span> Playing
+                    </button>
+                    <button class="filter-chip" data-filter="no-games">
+                        <span class="status-icon">🆕</span> No Games
+                    </button>
+                </div>
+            </div>
             <div class="search-box">
                 <input type="text" id="playerSearchInput" placeholder="Search players...">
             </div>
@@ -2196,10 +2280,26 @@
                 }
             }
 
-            swapPlayer(courtId, teamNumber, oldPlayerId) {
-                // Store the context for the swap
-                this.swapContext = { courtId, teamNumber, oldPlayerId };
-                return true;
+            swapPlayer(courtId, teamNumber, oldPlayerId, newPlayerId) {
+                const court = this.courts.get(courtId);
+                if (!court || !court.currentGame) return false;
+
+                // Remove the old player
+                court.currentGame.removePlayer(teamNumber, oldPlayerId);
+                this.playerManager.updatePlayerStatus(oldPlayerId, 'playing', false);
+                this.playerManager.updatePlayerStatus(oldPlayerId, 'ready', false);
+                this.playerManager.updatePlayerStatus(oldPlayerId, 'waiting', true);
+
+                // Add the new player
+                if (court.currentGame.addPlayer(teamNumber, newPlayerId)) {
+                    // Update the new player's status
+                    this.playerManager.updatePlayerStatus(newPlayerId, 'waiting', false);
+                    this.playerManager.updatePlayerStatus(newPlayerId, 'ready', true);
+                    this.notifyListeners();
+                    return true;
+                }
+
+                return false;
             }
 
             addListener(callback) {
@@ -2333,8 +2433,8 @@
                 const player = this.playerManager.players.get(playerId);
                 if (!player) return false;
 
-                // Check if player is already in a game or queue
-                if (player.status.has('playing') || player.status.has('queued')) {
+                // Only check if player is already queued
+                if (player.status.has('queued')) {
                     return false;
                 }
 
@@ -2681,6 +2781,23 @@
                 this.elements.mobileMenuBtn.addEventListener('click', () => {
                     this.elements.sidebar.classList.toggle('active');
                 });
+
+                // Add filter chip event listeners
+                this.elements.playerSelectionDialog.querySelectorAll('.filter-chip').forEach(chip => {
+                    chip.addEventListener('click', (e) => {
+                        // Remove active class from all chips
+                        this.elements.playerSelectionDialog.querySelectorAll('.filter-chip').forEach(c => 
+                            c.classList.remove('active')
+                        );
+                        
+                        // Add active class to clicked chip
+                        chip.classList.add('active');
+                        
+                        // Update current filter and re-render
+                        this.currentFilter = chip.dataset.filter;
+                        this.renderPlayerSelection(this.elements.playerSearchInput.value);
+                    });
+                });
             }
 
             setupPlayerManagerListeners() {
@@ -2902,7 +3019,7 @@
                                 ${this.renderTeam(court, 2)}
                             </div>
                             <div class="game-actions">
-                                <button class="button" 
+                                <button class="button full-width" 
                                     data-action="toggle-game" 
                                     ${!court.currentGame.isReady() ? 'disabled' : ''}>
                                     ${isGameActive ? 'End Game' : 'Start Game'}
@@ -3117,6 +3234,7 @@
                             const slot = target.closest('[data-action="add-player"]');
                             const teamNumber = parseInt(slot.dataset.team);
                             this.showPlayerSelectionDialog(courtId, teamNumber, false, false);
+                            return;
                         }
 
                         // Handle adding players to queue
@@ -3124,6 +3242,7 @@
                             const slot = target.closest('[data-action="add-queue-player"]');
                             const teamNumber = parseInt(slot.dataset.team);
                             this.showPlayerSelectionDialog(courtId, teamNumber, false, true);
+                            return;
                         }
 
                         // Handle removing players from game
@@ -3251,43 +3370,34 @@
             }
 
             showPlayerSelectionDialog(courtId, teamNumber, isSwap = false, isQueue = false, queueIndex = null) {
-                console.log('Opening dialog:', { courtId, teamNumber, isSwap, isQueue, queueIndex });
                 const dialog = this.elements.playerSelectionDialog;
                 
+                // Store the swap context if needed
+                if (isSwap) {
+                    const playerChip = event.target.closest('.player-chip');
+                    dialog.dataset.oldPlayerId = playerChip.dataset.playerId;
+                }
+                
+                // Set dialog data attributes
                 dialog.dataset.courtId = courtId;
                 dialog.dataset.teamNumber = teamNumber;
                 dialog.dataset.isSwap = isSwap;
                 dialog.dataset.isQueue = isQueue;
-                dialog.dataset.queueIndex = queueIndex;
 
                 // Update dialog title
-                dialog.querySelector('h2').textContent = isQueue ? 'Add Player to Queue' : 'Add Player to Team';
+                dialog.querySelector('h2').textContent = isSwap ? 'Swap Player' : (isQueue ? 'Add Player to Queue' : 'Add Player to Team');
 
                 // Reset search and render players
                 this.elements.playerSearchInput.value = '';
+                this.currentFilter = 'all';
+
+                // Reset active filter chip
+                dialog.querySelectorAll('.filter-chip').forEach(chip => {
+                    chip.classList.toggle('active', chip.dataset.filter === 'all');
+                });
+
+                // Render initial player list
                 this.renderPlayerSelection('');
-
-                // Add click handler for direct selection
-                const playersGrid = this.elements.playersGrid;
-                const handleDirectSelection = (e) => {
-                    const item = e.target.closest('.player-selection-item');
-                    if (item) {
-                        const playerId = item.dataset.playerId;
-                        if (isQueue) {
-                            this.addPlayerToQueueTeam(courtId, teamNumber, playerId);
-                        } else {
-                            this.addPlayerToGameTeam(courtId, teamNumber, playerId);
-                        }
-                        dialog.close();
-                    }
-                };
-
-                playersGrid.addEventListener('click', handleDirectSelection);
-                
-                // Remove event listener when dialog closes
-                dialog.addEventListener('close', () => {
-                    playersGrid.removeEventListener('click', handleDirectSelection);
-                }, { once: true });
 
                 dialog.showModal();
             }
@@ -3296,18 +3406,37 @@
                 const players = this.playerManager.getFilteredPlayers(searchTerm);
                 const playersGrid = this.elements.playersGrid;
                 
-                if (players.length === 0) {
+                // Filter players based on current filter
+                const filteredPlayers = players.filter(player => {
+                    switch (this.currentFilter) {
+                        case 'waiting':
+                            return player.status.has('waiting') && !player.status.has('playing');
+                            // Removed the !player.status.has('queued') condition to allow queued players
+                        case 'playing':
+                            return player.status.has('playing');
+                        case 'no-games':
+                            return player.gamesPlayed === 0;
+                        default:
+                            return true;
+                    }
+                });
+                
+                if (filteredPlayers.length === 0) {
                     playersGrid.innerHTML = `
                         <div class="empty-state small">
                             <p>No players found</p>
-                            <p>Try a different search term</p>
+                            <p>${searchTerm ? 'Try a different search term' : 'Try a different filter'}</p>
                         </div>
                     `;
                     return;
                 }
 
-                playersGrid.innerHTML = players.map(player => {
-                    // Remove isUnavailable check since we want to allow selection of playing/queued players
+                // Sort players by games played (for 'no-games' filter)
+                if (this.currentFilter === 'no-games') {
+                    filteredPlayers.sort((a, b) => a.gamesPlayed - b.gamesPlayed);
+                }
+
+                playersGrid.innerHTML = filteredPlayers.map(player => {
                     const statusText = this.getPlayerStatusText(player.status);
                     
                     return `
@@ -3331,15 +3460,14 @@
                     `;
                 }).join('');
 
-                // Update click handler to allow selection of all players
-                playersGrid.addEventListener('click', (e) => {
-                    const item = e.target.closest('.player-selection-item');
-                    if (item) {
+                // Add click handler for player selection
+                playersGrid.querySelectorAll('.player-selection-item').forEach(item => {
+                    item.addEventListener('click', () => {
                         playersGrid.querySelectorAll('.player-selection-item').forEach(i => 
                             i.classList.remove('selected')
                         );
                         item.classList.add('selected');
-                    }
+                    });
                 });
             }
 
@@ -3485,10 +3613,8 @@
                 const isInTeam2 = game.team2.players.has(playerId);
                 
                 if (!isInTeam1 && !isInTeam2) {
-                    if (this.courtManager.addPlayerToGame(courtId, teamNumber, playerId)) {
-                        this.playerManager.updatePlayerStatus(playerId, 'playing', true);
-                        this.renderCourts();
-                    }
+                    this.courtManager.addPlayerToGame(courtId, teamNumber, playerId);
+                    this.renderCourts();
                 }
             }
 
@@ -3526,7 +3652,26 @@
                 this.setupEventListeners();
                 this.setupPlayerManagerListeners();
                 this.setupCourtManagerListeners();
-                this.setupMobileMenu(); // Add this line
+                this.setupMobileMenu();
+                
+                // Add direct click handler for player selection
+                this.elements.playersGrid.addEventListener('click', (e) => {
+                    const item = e.target.closest('.player-selection-item');
+                    if (item) {
+                        const playerId = item.dataset.playerId;
+                        const dialog = this.elements.playerSelectionDialog;
+                        const courtId = dialog.dataset.courtId;
+                        const teamNumber = parseInt(dialog.dataset.teamNumber);
+                        const isQueue = dialog.dataset.isQueue === 'true';
+
+                        if (isQueue) {
+                            this.courtManager.addPlayerToQueue(courtId, teamNumber, playerId);
+                        } else {
+                            this.courtManager.addPlayerToGame(courtId, teamNumber, playerId);
+                        }
+                        dialog.close();
+                    }
+                });
                 
                 // Initial render
                 this.renderPlayersList();
@@ -3694,6 +3839,104 @@
                         overlay.classList.remove('active');
                     }
                 }, false);
+            }
+
+            // Add these methods to the UIManager class
+
+            showPlayerSelectionDialog(courtId, teamNumber, isSwap = false, isQueue = false, queueIndex = null) {
+                const dialog = this.elements.playerSelectionDialog;
+                
+                // Set dialog data attributes
+                dialog.dataset.courtId = courtId;
+                dialog.dataset.teamNumber = teamNumber;
+                dialog.dataset.isSwap = isSwap;
+                dialog.dataset.isQueue = isQueue;
+
+                // Update dialog title
+                dialog.querySelector('h2').textContent = isQueue ? 'Add Player to Queue' : 'Add Player to Team';
+
+                // Reset search and render players
+                this.elements.playerSearchInput.value = '';
+                this.currentFilter = 'all';
+
+                // Reset active filter chip
+                dialog.querySelectorAll('.filter-chip').forEach(chip => {
+                    chip.classList.toggle('active', chip.dataset.filter === 'all');
+                });
+
+                // Render initial player list
+                this.renderPlayerSelection('');
+
+                dialog.showModal();
+            }
+
+            renderPlayerSelection(searchTerm = '') {
+                const players = this.playerManager.getFilteredPlayers(searchTerm);
+                const playersGrid = this.elements.playersGrid;
+                
+                // Filter players based on current filter
+                const filteredPlayers = players.filter(player => {
+                    switch (this.currentFilter) {
+                        case 'waiting':
+                            return player.status.has('waiting') && !player.status.has('playing');
+                            // Removed the !player.status.has('queued') condition to allow queued players
+                        case 'playing':
+                            return player.status.has('playing');
+                        case 'no-games':
+                            return player.gamesPlayed === 0;
+                        default:
+                            return true;
+                    }
+                });
+                
+                if (filteredPlayers.length === 0) {
+                    playersGrid.innerHTML = `
+                        <div class="empty-state small">
+                            <p>No players found</p>
+                            <p>${searchTerm ? 'Try a different search term' : 'Try a different filter'}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Sort players by games played (for 'no-games' filter)
+                if (this.currentFilter === 'no-games') {
+                    filteredPlayers.sort((a, b) => a.gamesPlayed - b.gamesPlayed);
+                }
+
+                playersGrid.innerHTML = filteredPlayers.map(player => {
+                    const statusText = this.getPlayerStatusText(player.status);
+                    
+                    return `
+                        <div class="player-selection-item" 
+                             data-player-id="${player.id}"
+                             title="${statusText}"
+                        >
+                            <div class="player-info">
+                                <div class="player-name">${player.name}</div>
+                                <span class="skill-badge">Lvl ${player.skillLevel}</span>
+                                <span class="games-badge">🎮 ${player.gamesPlayed} Games</span>
+                            </div>
+                            <div class="player-statuses">
+                                ${Array.from(player.status).map(status => 
+                                    `<span class="status-chip ${status}" title="${this.capitalizeFirst(status)}">
+                                        ${this.getStatusIcon(status)}
+                                    </span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Add click handler for player selection
+                playersGrid.querySelectorAll('.player-selection-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        playersGrid.querySelectorAll('.player-selection-item').forEach(i => 
+                            i.classList.remove('selected')
+                        );
+                        item.classList.add('selected');
+                    });
+                });
             }
         }
 
