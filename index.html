@@ -899,10 +899,7 @@
                 gap: var(--spacing-sm);
             }
 
-            .main-header-actions {
-                width: 100%;
-                justify-content: space-between;
-            }
+        
 
             .courts-container {
                 padding: var(--spacing-sm);
@@ -2092,10 +2089,63 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="main-header">
-                <h1 class="main-header-title">Badminton Queue Manager</h1>
-                <div class="main-header-actions">
-                    <button class="button secondary" id="addCourtBtn">Add Court</button>
+                <div class="main-header-content">
+                    <h1 class="main-header-title">Badminton Queue Manager</h1>
+                    <div class="main-header-actions">
+                        <button class="button secondary" id="addCourtBtn" style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <span class="button-icon">+</span>
+                            <span class="button-text">Add Court</span>
+                        </button>
+                    </div>
                 </div>
+                <style>
+                    .main-header {
+                        padding: var(--spacing-md);
+                        background: var(--background);
+                        border-bottom: 1px solid var(--gray-3);
+                        position: sticky;
+                        top: 0;
+                        z-index: 10;
+                    }
+                    
+                    .main-header-content {
+                        max-width: 100%;
+                        width: 100%;
+                        margin: 0 auto;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: var(--spacing-md);
+                        padding-top: max(var(--spacing-xs), env(safe-area-inset-top));
+                    }
+
+                    .main-header-title {
+                        font-size: 1.5rem;
+                        font-weight: 600;
+                        margin: 0;
+                    }
+
+                    @media (max-width: 600px) {
+                        .main-header-title {
+                            font-size: 1.25rem;
+                        }
+                        
+                        .button-text {
+                            display: none;
+                        }
+                        
+                        .button-icon {
+                            font-size: 1.25rem;
+                            line-height: 1;
+                        }
+                        
+                        #addCourtBtn {
+                            padding: var(--spacing-sm);
+                            min-width: 0;
+                            aspect-ratio: 1;
+                        }
+                    }
+                </style>
             </div>
             <div class="courts-container">
                 <!-- Courts will be rendered here -->
