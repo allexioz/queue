@@ -84,6 +84,12 @@
             padding-top: max(var(--spacing-md), env(safe-area-inset-top));
         }
 
+        .sidebar-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
         @media (max-width: 800px) {
             .sidebar-header {
                 padding-top: calc(var(--spacing-md) + env(safe-area-inset-top));
@@ -99,14 +105,6 @@
                 flex: 1;
                 text-align: center;
             }
-        }
-
-        .sidebar-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--spacing-md);
-            text-align: center;
         }
 
         .search-box {
@@ -700,14 +698,16 @@
                 background: var(--background);
                 border-top: 1px solid var(--gray-3);
                 z-index: 2;
-                margin-top: auto;
                 padding-bottom: max(var(--spacing-md), env(safe-area-inset-bottom));
             }
 
             /* Make the Add Players button full width */
             .sidebar-footer .button {
                 width: 100%;
+                display: flex;
+                align-items: center;
                 justify-content: center;
+                gap: var(--spacing-sm);
             }
 
             /* Adjust sidebar title for back button */
@@ -1964,10 +1964,86 @@
                 /* ... rest of mobile styles ... */
             }
         }
+
+        /* Add toast styles to the existing styles section */
+        .toast-container {
+            position: fixed;
+            bottom: calc(80px + env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: var(--spacing-sm);
+            pointer-events: none;
+            width: min(calc(100% - 32px), 400px);
+        }
+
+        .toast {
+            background: var(--background);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            animation: toast-slide-up 0.3s ease;
+            pointer-events: auto;
+            border: 1px solid var(--gray-3);
+        }
+
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
+        .toast.warning { border-left: 4px solid var(--warning); }
+        .toast.info { border-left: 4px solid var(--primary); }
+
+        @keyframes toast-slide-up {
+            from { opacity: 0; transform: translateY(100%); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes toast-slide-out {
+            to { opacity: 0; transform: translateY(-100%); }
+        }
+
+        /* Hide the sidebar footer on desktop */
+        @media (min-width: 801px) {
+            .sidebar-footer {
+                display: none;
+            }
+            
+            /* Move the Add Players button to the header */
+            .sidebar-title {
+                gap: var(--spacing-md);
+            }
+            
+            .sidebar-title h2 {
+                margin: 0;
+            }
+            
+            #addPlayersBtn {
+                font-size: 14px;
+                padding: 6px 12px;
+            }
+        }
+
+        /* Show the sidebar footer only on mobile */
+        @media (max-width: 800px) {
+            .sidebar-header {
+                padding-top: calc(var(--spacing-md) + env(safe-area-inset-top));
+            }
+            
+            .sidebar-title {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- Add this right after opening body tag -->
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- Existing overlay -->
     <div class="sidebar-overlay"></div>
     
     <div class="app">
@@ -1980,6 +2056,7 @@
                 </button>
                 <div class="sidebar-title">
                     <h2>Players</h2>
+                    <button class="button" id="addPlayersBtn">Add Players</button>
                 </div>
                 <div class="search-box">
                     <input type="text" placeholder="Search players...">
@@ -2115,6 +2192,17 @@
     </button>
 
     <script>
+        // Add at the start of the script
+        window.onerror = (message, source, lineno, colno, error) => {
+            console.error('Global error:', {message, source, lineno, colno, error});
+            ToastManager.getInstance().show('An error occurred. Please refresh the page.', 'error');
+        };
+
+        window.onunhandledrejection = (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            ToastManager.getInstance().show('An error occurred. Please refresh the page.', 'error');
+        };
+
         // Core data structures
         class Player {
             constructor(id, name, skillLevel = 1) {
@@ -2137,6 +2225,7 @@
                 const player = new Player(id, name, skillLevel);
                 this.players.set(player.id, player);
                 this.notifyListeners();
+                ToastManager.getInstance().show(`Added ${name} to players`, 'success');
                 return player;
             }
 
@@ -2147,8 +2236,11 @@
             }
 
             removePlayer(playerId) {
+                const player = this.players.get(playerId);
+                const name = player ? player.name : 'Player';
                 this.players.delete(playerId);
                 this.notifyListeners();
+                ToastManager.getInstance().show(`Removed ${name} from players`, 'info');
             }
 
             updatePlayerStatus(playerId, status, add = true) {
@@ -2246,17 +2338,12 @@
             }
 
             startTimer() {
-                if (this.timer) {
-                    clearInterval(this.timer);
-                }
+                this.cleanup();  // Always cleanup before starting new timer
                 
-                // Calculate initial elapsed time if game was previously started
-                if (this.startTime) {
-                    this.elapsedTime = Math.floor((Date.now() - this.startTime) / 1000);
-                }
+                if (this.status !== 'active') return;
 
                 this.timer = setInterval(() => {
-                    if (this.startTime && this.status === 'active') {  // Add status check
+                    if (this.startTime && this.status === 'active') {
                         this.elapsedTime = Math.floor((Date.now() - this.startTime) / 1000);
                         // Emit timer update event
                         if (this.onTimerUpdate) {
@@ -2267,10 +2354,7 @@
             }
 
             end() {
-                if (this.timer) {
-                    clearInterval(this.timer);
-                    this.timer = null;
-                }
+                this.cleanup();
                 this.status = 'finished';
                 const endTime = Date.now();
                 this.elapsedTime = Math.floor((endTime - this.startTime) / 1000);
@@ -2287,6 +2371,13 @@
 
             setTimerUpdateCallback(callback) {
                 this.onTimerUpdate = callback;
+            }
+
+            cleanup() {
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
             }
         }
 
@@ -2323,6 +2414,7 @@
                 this.playerManager = playerManager;
                 this.listeners = new Set();
                 this.nextCourtId = 1;
+                this.queueLock = false;
             }
 
             createCourt(name = null) {
@@ -2417,7 +2509,10 @@
 
             startGame(courtId) {
                 const court = this.courts.get(courtId);
-                if (!court || !court.currentGame.isReady()) return false;
+                if (!court || !court.currentGame.isReady()) {
+                    ToastManager.getInstance().show('Cannot start game - teams are not complete', 'error');
+                    return false;
+                }
 
                 // Update player statuses
                 const allPlayers = [
@@ -2440,12 +2535,16 @@
 
                 court.currentGame.start();
                 this.notifyListeners();
+                ToastManager.getInstance().show('Game started!', 'success');
                 return true;
             }
 
             endGame(courtId) {
                 const court = this.courts.get(courtId);
-                if (!court || court.currentGame.status !== 'active') return false;
+                if (!court || court.currentGame.status !== 'active') {
+                    ToastManager.getInstance().show('No active game to end', 'error');
+                    return false;
+                }
 
                 const gameResult = court.currentGame.end();
                 const allPlayers = [...gameResult.team1Players, ...gameResult.team2Players];
@@ -2483,6 +2582,7 @@
                 }
 
                 this.notifyListeners();
+                ToastManager.getInstance().show('Game ended', 'info');
                 return true;
             }
 
@@ -2497,9 +2597,11 @@
                         court.queue.push(game);
                         court.queueTeams = [{ team1: [], team2: [] }]; // Reset queue teams
                         this.notifyListeners();
+                        ToastManager.getInstance().show('Match added to queue', 'success');
                         return true;
                     }
                 }
+                ToastManager.getInstance().show('Could not add match to queue', 'error');
                 return false;
             }
 
@@ -2515,6 +2617,7 @@
                     }
                     court.removeFromQueue(queueIndex);
                     this.notifyListeners();
+                    ToastManager.getInstance().show('Match removed from queue', 'info');
                 }
             }
 
@@ -2527,39 +2630,27 @@
                 }
             }
 
-            addPlayerToQueue(courtId, teamNumber, playerId) {
-                const court = this.courts.get(courtId);
-                if (!court) return false;
+            async addPlayerToQueue(courtId, teamNumber, playerId) {
+                if (this.queueLock) return false;
+                
+                try {
+                    this.queueLock = true;
+                    const court = this.courts.get(courtId);
+                    if (!court) return false;
 
-                const player = this.playerManager.players.get(playerId);
-                if (!player) return false;
+                    const team = teamNumber === 1 ? court.queueTeams[0].team1 : court.queueTeams[0].team2;
+                    const otherTeam = teamNumber === 1 ? court.queueTeams[0].team2 : court.queueTeams[0].team1;
 
-                // Only check if player is already queued
-                if (player.status.has('queued')) {
-                    return false;
-                }
-
-                const team = teamNumber === 1 ? court.queueTeams[0].team1 : court.queueTeams[0].team2;
-                const otherTeam = teamNumber === 1 ? court.queueTeams[0].team2 : court.queueTeams[0].team1;
-
-                // Check if player is already in either team
-                if (!team.includes(playerId) && !otherTeam.includes(playerId) && team.length < 2) {
-                    team.push(playerId);
-                    this.playerManager.updatePlayerStatus(playerId, 'queued', true);
-
-                    // If both teams are complete, create a new game
-                    if (court.queueTeams[0].team1.length === 2 && court.queueTeams[0].team2.length === 2) {
-                        const newGame = new Game();
-                        court.queueTeams[0].team1.forEach(id => newGame.addPlayer(1, id));
-                        court.queueTeams[0].team2.forEach(id => newGame.addPlayer(2, id));
-                        court.addToQueue(newGame);
-                        court.queueTeams = [{ team1: [], team2: [] }]; // Reset teams
+                    if (!team.includes(playerId) && !otherTeam.includes(playerId) && team.length < 2) {
+                        team.push(playerId);
+                        await this.playerManager.updatePlayerStatus(playerId, 'queued', true);
+                        this.notifyListeners();
+                        return true;
                     }
-
-                    this.notifyListeners();
-                    return true;
+                    return false;
+                } finally {
+                    this.queueLock = false;
                 }
-                return false;
             }
 
             removePlayerFromQueue(courtId, teamNumber, playerId) {
@@ -2899,6 +2990,16 @@
                         this.renderPlayerSelection(this.elements.playerSearchInput.value);
                     });
                 });
+
+                // Update the Add Court button listener
+                if (this.elements.addCourtBtn) {
+                    this.elements.addCourtBtn.addEventListener('click', () => {
+                        const court = this.courtManager.createCourt();
+                        console.log('Created new court:', court);
+                        this.renderCourts();
+                        ToastManager.getInstance().show('New court added', 'success');
+                    });
+                }
             }
 
             setupPlayerManagerListeners() {
@@ -3144,7 +3245,9 @@
 
             renderTeam(court, teamNumber) {
                 const team = teamNumber === 1 ? court.currentGame.team1 : court.currentGame.team2;
-                const players = Array.from(team.players).map(id => this.playerManager.players.get(id));
+                const players = Array.from(team.players)
+                    .map(id => this.playerManager.players.get(id))
+                    .filter(player => player !== undefined); // Filter out undefined players
                 const slotsNeeded = 2 - players.length;
 
                 return `
@@ -3883,6 +3986,7 @@
                         </button>
                         <div class="sidebar-title">
                             <h2>Players</h2>
+                            <button class="button" id="addPlayersBtn">Add Players</button>
                         </div>
                         <div class="search-box">
                             <input type="text" placeholder="Search players...">
@@ -4049,14 +4153,35 @@
                     });
                 });
             }
+
+            addEventListenerWithCleanup(element, event, handler) {
+                const boundHandler = handler.bind(this);
+                this.boundEventHandlers.set(handler, boundHandler);
+                element.addEventListener(event, boundHandler);
+            }
+
+            cleanup() {
+                this.boundEventHandlers.forEach((boundHandler, handler) => {
+                    const element = this.elements[handler.name];
+                    if (element) {
+                        element.removeEventListener(handler.name, boundHandler);
+                    }
+                });
+                this.boundEventHandlers.clear();
+            }
         }
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', () => {
+            // Check version before initializing app
+            if (!VersionControl.checkVersion()) {
+                return; // Stop initialization if version check triggered a reload
+            }
+
             // Initialize managers
             const playerManager = new PlayerManager();
-            const queueManager = new QueueManager(playerManager);
             const courtManager = new CourtManager(playerManager);
+            const queueManager = new QueueManager(playerManager);
             const uiManager = new UIManager(playerManager, courtManager, queueManager);
 
             // Try to load saved state
@@ -4096,14 +4221,12 @@
             };
 
             // Save state on important actions
-            playerManager.addListener(() => autoSave());
-            courtManager.addListener(() => autoSave());
-            queueManager.addListener(() => autoSave());
+            playerManager.addListener(autoSave);
+            courtManager.addListener(autoSave);
+            queueManager.addListener(autoSave);
 
             // Save state before page unload
-            window.addEventListener('beforeunload', () => {
-                autoSave();
-            });
+            window.addEventListener('beforeunload', autoSave);
         });
 
         class QueueManager {
@@ -4152,41 +4275,34 @@
                 LAST_COURT_ID: 'badminton_last_court_id'
             };
 
-            static saveState(playerManager, courtManager, queueManager) {
-                // Save players
-                const players = Array.from(playerManager.players.entries()).map(([id, player]) => ({
-                    id,
-                    name: player.name,
-                    skillLevel: player.skillLevel,
-                    status: Array.from(player.status),
-                    gamesPlayed: player.gamesPlayed
-                }));
-                localStorage.setItem(this.STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+            static async saveState(playerManager, courtManager, queueManager) {
+                const state = {
+                    players: Array.from(playerManager.players.entries()),
+                    courts: Array.from(courtManager.courts.entries()),
+                    queue: queueManager.queue,
+                    lastCourtId: courtManager.nextCourtId,
+                    version: '1.0.0'
+                };
 
-                // Save courts
-                const courts = Array.from(courtManager.courts.entries()).map(([id, court]) => ({
-                    id,
-                    name: court.name,
-                    currentGame: {
-                        team1: Array.from(court.currentGame.team1.players),
-                        team2: Array.from(court.currentGame.team2.players),
-                        startTime: court.currentGame.startTime,
-                        elapsedTime: court.currentGame.elapsedTime,
-                        status: court.currentGame.status
-                    },
-                    queue: court.queue.map(game => ({
-                        team1: Array.from(game.team1.players),
-                        team2: Array.from(game.team2.players)
-                    })),
-                    queueTeams: court.queueTeams
-                }));
-                localStorage.setItem(this.STORAGE_KEYS.COURTS, JSON.stringify(courts));
+                try {
+                    // Save atomically
+                    const stateString = JSON.stringify(state);
+                    await this.checkStorageQuota(stateString.length);
+                    localStorage.setItem('badminton_state', stateString);
+                    localStorage.setItem('badminton_state_timestamp', Date.now());
+                } catch (error) {
+                    console.error('Failed to save state:', error);
+                    ToastManager.getInstance().show('Failed to save game state', 'error');
+                }
+            }
 
-                // Save last court ID
-                localStorage.setItem(this.STORAGE_KEYS.LAST_COURT_ID, courtManager.nextCourtId);
-
-                // Save queue
-                localStorage.setItem(this.STORAGE_KEYS.QUEUE, JSON.stringify(queueManager.queue));
+            static async checkStorageQuota(requiredBytes) {
+                if (navigator.storage && navigator.storage.estimate) {
+                    const {usage, quota} = await navigator.storage.estimate();
+                    if (usage + requiredBytes > quota) {
+                        throw new Error('Storage quota would be exceeded');
+                    }
+                }
             }
 
             static loadState(playerManager, courtManager, queueManager) {
@@ -4341,6 +4457,41 @@
             const queueManager = new QueueManager(playerManager);
             // ...
         });
+
+        class ToastManager {
+            static instance = null;
+
+            constructor() {
+                this.container = document.getElementById('toastContainer');
+                if (!this.container) {
+                    this.container = document.createElement('div');
+                    this.container.id = 'toastContainer';
+                    this.container.className = 'toast-container';
+                    document.body.appendChild(this.container);
+                }
+            }
+
+            static getInstance() {
+                if (!ToastManager.instance) {
+                    ToastManager.instance = new ToastManager();
+                }
+                return ToastManager.instance;
+            }
+
+            show(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+
+                this.container.appendChild(toast);
+
+                // Remove toast after 3 seconds
+                setTimeout(() => {
+                    toast.style.animation = 'toast-slide-out 0.3s ease forwards';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        }
     </script>
 
     <!-- Update the queue match dialog HTML -->
