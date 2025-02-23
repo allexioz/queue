@@ -66,19 +66,39 @@
         .sidebar {
             background: var(--background);
             border-right: 1px solid var(--gray-3);
-            padding: 0; /* Remove padding to have header stick to top */
+            padding: 0;
             display: flex;
             flex-direction: column;
             height: 100%;
+            min-height: 100vh; /* Ensure it takes full height */
         }
 
+        /* Update sidebar header styles */
         .sidebar-header {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
             padding: var(--spacing-md);
-            border-bottom: 1px solid var(--gray-3);
             background: var(--background);
-            position: sticky;
-            top: 0;
-            z-index: 1;
+            border-bottom: 1px solid var(--gray-3);
+            padding-top: max(var(--spacing-md), env(safe-area-inset-top));
+        }
+
+        @media (max-width: 800px) {
+            .sidebar-header {
+                padding-top: calc(var(--spacing-md) + env(safe-area-inset-top));
+            }
+            
+            .sidebar-title {
+                display: flex;
+                align-items: center;
+                gap: var(--spacing-md);
+            }
+            
+            .sidebar-title h2 {
+                flex: 1;
+                text-align: center;
+            }
         }
 
         .sidebar-title {
@@ -86,6 +106,7 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: var(--spacing-md);
+            text-align: center;
         }
 
         .search-box {
@@ -118,6 +139,7 @@
             padding: var(--spacing-md);
             overflow-y: auto;
             flex: 1;
+            min-height: 0; /* Allows flex container to scroll */
         }
 
         .player-card {
@@ -575,10 +597,10 @@
 
         /* Update the mobile-menu-button styles */
         .mobile-menu-button {
-            display: none;
             position: fixed;
             bottom: var(--spacing-md);
-            right: var(--spacing-md);
+            left: 50%;
+            transform: translateX(-50%);
             padding: var(--spacing-sm) var(--spacing-md);
             min-width: 140px;
             height: 48px;
@@ -587,7 +609,7 @@
             color: white;
             border: none;
             box-shadow: var(--shadow-lg);
-            z-index: 1000;
+            z-index: 998;
             font-weight: 500;
             display: flex;
             align-items: center;
@@ -597,13 +619,17 @@
         }
 
         .mobile-menu-button:active {
-            transform: scale(0.98);
+            transform: translateX(-50%) scale(0.98);
         }
 
-        .mobile-menu-button:hover {
-            box-shadow: var(--shadow-xl);
+        /* Add safe area padding for iOS */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .mobile-menu-button {
+                bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+            }
         }
 
+        /* Hide mobile menu button on desktop */
         @media (min-width: 801px) {
             .mobile-menu-button {
                 display: none;
@@ -620,6 +646,7 @@
             bottom: 0;
             background: rgba(0, 0, 0, 0.5);
             z-index: 999;
+            backdrop-filter: blur(2px);
         }
 
         .sidebar-overlay.active {
@@ -631,15 +658,61 @@
             .sidebar {
                 position: fixed;
                 top: 0;
-                right: -300px; /* Start off-screen */
+                right: -100%;
                 bottom: 0;
-                width: 300px;
+                width: 100%;
                 transition: right 0.3s ease;
                 z-index: 1000;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                background: var(--background);
             }
 
-            .sidebar.active {
-                right: 0;
+            .sidebar-back-button {
+                display: flex;  /* Only show on mobile */
+                padding: var(--spacing-sm) var(--spacing-md);
+                border: none;
+                background: var(--gray-4);
+                color: var(--primary);
+                font-weight: 500;
+                align-items: center;
+                gap: var(--spacing-xs);
+                cursor: pointer;
+                border-radius: var(--radius-md);
+                transition: all 0.2s ease;
+                width: 100%;
+                justify-content: center;
+            }
+
+            .sidebar-back-button:hover {
+                background: var(--gray-3);
+            }
+
+            .sidebar-back-button:active {
+                transform: scale(0.98);
+            }
+
+            /* Move Add Players button to bottom of sidebar */
+            .sidebar-footer {
+                position: sticky;
+                bottom: 0;
+                padding: var(--spacing-md);
+                background: var(--background);
+                border-top: 1px solid var(--gray-3);
+                z-index: 2;
+                margin-top: auto;
+                padding-bottom: max(var(--spacing-md), env(safe-area-inset-bottom));
+            }
+
+            /* Make the Add Players button full width */
+            .sidebar-footer .button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            /* Adjust sidebar title for back button */
+            .sidebar-title {
+                text-align: center;
             }
         }
 
@@ -757,12 +830,10 @@
             }
         }
 
+        /* Remove sticky positioning from main header */
         .main-header {
-            position: sticky;
-            top: 0;
             background: var(--background);
             border-bottom: 1px solid var(--gray-3);
-            z-index: 10;
             padding: var(--spacing-md);
             display: flex;
             justify-content: space-between;
@@ -1873,16 +1944,42 @@
             padding: 0 var(--spacing-md);
             margin-bottom: var(--spacing-md);
         }
+
+        /* Add these styles to prevent body scroll when menu is open */
+        body.menu-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Add this before any media queries */
+        .sidebar-back-button {
+            display: none;  /* Hide by default on all screens */
+        }
+
+        @media (max-width: 800px) {
+            .sidebar-back-button {
+                display: flex;  /* Only show on mobile */
+                /* ... rest of mobile styles ... */
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Add this right after opening body tag -->
+    <div class="sidebar-overlay"></div>
+    
     <div class="app">
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
+                <button class="sidebar-back-button">
+                    <span>←</span>
+                    <span>Back</span>
+                </button>
                 <div class="sidebar-title">
                     <h2>Players</h2>
-                    <button class="button" id="addPlayersBtn">Add Players</button>
                 </div>
                 <div class="search-box">
                     <input type="text" placeholder="Search players...">
@@ -1908,6 +2005,10 @@
                     <p>No players added yet</p>
                     <p>Add players to start managing games</p>
                 </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="button" id="addPlayersBtn">Add Players</button>
             </div>
         </aside>
 
@@ -3776,9 +3877,12 @@
             renderSidebar() {
                 return `
                     <div class="sidebar-header">
+                        <button class="sidebar-back-button">
+                            <span>←</span>
+                            <span>Back</span>
+                        </button>
                         <div class="sidebar-title">
                             <h2>Players</h2>
-                            <button class="button" id="addPlayersBtn">Add Players</button>
                         </div>
                         <div class="search-box">
                             <input type="text" placeholder="Search players...">
@@ -3786,6 +3890,9 @@
                     </div>
                     <div class="players-list" id="playersList">
                         ${this.renderPlayersList()}
+                    </div>
+                    <div class="sidebar-footer">
+                        <button class="button" id="addPlayersBtn">Add Players</button>
                     </div>
                 `;
             }
@@ -3806,23 +3913,28 @@
             setupMobileMenu() {
                 const mobileMenuBtn = document.querySelector('.mobile-menu-button');
                 const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
                 
-                // Create overlay element
-                const overlay = document.createElement('div');
-                overlay.className = 'sidebar-overlay';
-                document.body.appendChild(overlay);
-
-                // Toggle sidebar
-                mobileMenuBtn.addEventListener('click', () => {
+                const openMenu = () => {
                     sidebar.classList.add('active');
                     overlay.classList.add('active');
-                });
+                    document.body.classList.add('menu-open');
+                };
 
-                // Close sidebar when clicking overlay
-                overlay.addEventListener('click', () => {
+                const closeMenu = () => {
                     sidebar.classList.remove('active');
                     overlay.classList.remove('active');
-                });
+                    document.body.classList.remove('menu-open');
+                };
+
+                // Toggle sidebar
+                mobileMenuBtn.addEventListener('click', openMenu);
+
+                // Close sidebar when clicking overlay
+                overlay.addEventListener('click', closeMenu);
+
+                // Back button handler
+                sidebar.querySelector('.sidebar-back-button').addEventListener('click', closeMenu);
 
                 // Add swipe to close
                 let touchStartX = 0;
@@ -3835,8 +3947,7 @@
                 sidebar.addEventListener('touchend', (e) => {
                     touchEndX = e.changedTouches[0].screenX;
                     if (touchStartX - touchEndX > 50) { // Swipe left
-                        sidebar.classList.remove('active');
-                        overlay.classList.remove('active');
+                        closeMenu();
                     }
                 }, false);
             }
