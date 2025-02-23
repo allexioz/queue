@@ -2685,6 +2685,48 @@
                 }
             }
 
+            initialize() {
+                this.initializeElements();
+                this.setupEventListeners();
+                this.setupPlayerManagerListeners();
+                this.setupCourtManagerListeners();
+                this.setupMobileMenu();
+                
+                // Initial render
+                this.renderPlayersList();
+                this.renderCourts();
+            }
+
+            setupEventListeners() {
+                // Remove the Add Court button listener from here if it exists
+                // It should only be in setupCourtManagerListeners
+            }
+
+            setupCourtManagerListeners() {
+                this.courtManager.addListener((courts, type, data) => {
+                    if (type === 'timer' && data) {
+                        this.updateGameTimer(data.courtId, data.elapsedTime);
+                    } else {
+                        this.renderCourts();
+                    }
+                });
+
+                // Add Court button listener should be here
+                if (this.elements.addCourtBtn) {
+                    // Remove any existing listeners first
+                    this.elements.addCourtBtn.replaceWith(this.elements.addCourtBtn.cloneNode(true));
+                    // Re-get the element after replacing
+                    this.elements.addCourtBtn = document.getElementById('addCourtBtn');
+                    
+                    this.elements.addCourtBtn.addEventListener('click', () => {
+                        const court = this.courtManager.createCourt();
+                        console.log('Created new court:', court);
+                        this.renderCourts();
+                        ToastManager.getInstance().show('New court added', 'success');
+                    });
+                }
+            }
+
             renderMainContent() {
                 return `
                     <div class="main-content">
@@ -2961,7 +3003,10 @@
 
                 // Add Court button
                 this.elements.addCourtBtn.addEventListener('click', () => {
-                    this.courtManager.createCourt();
+                    const court = this.courtManager.createCourt();
+                    console.log('Created new court:', court);
+                    this.renderCourts();
+                    ToastManager.getInstance().show('New court added', 'success');
                 });
 
                 // Search players
@@ -2990,16 +3035,6 @@
                         this.renderPlayerSelection(this.elements.playerSearchInput.value);
                     });
                 });
-
-                // Update the Add Court button listener
-                if (this.elements.addCourtBtn) {
-                    this.elements.addCourtBtn.addEventListener('click', () => {
-                        const court = this.courtManager.createCourt();
-                        console.log('Created new court:', court);
-                        this.renderCourts();
-                        ToastManager.getInstance().show('New court added', 'success');
-                    });
-                }
             }
 
             setupPlayerManagerListeners() {
@@ -3155,22 +3190,6 @@
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
-            }
-
-            setupCourtManagerListeners() {
-                this.courtManager.addListener((courts, type, data) => {
-                    if (type === 'timer' && data) {
-                        this.updateGameTimer(data.courtId, data.elapsedTime);
-                    } else {
-                        this.renderCourts();
-                    }
-                });
-
-                // Add court button
-                this.elements.addCourtBtn.addEventListener('click', () => {
-                    console.log('Creating new court...');
-                    this.courtManager.createCourt();
-                });
             }
 
             renderCourts() {
@@ -3851,37 +3870,6 @@
                 }
             }
 
-            initialize() {
-                this.initializeElements();
-                this.setupEventListeners();
-                this.setupPlayerManagerListeners();
-                this.setupCourtManagerListeners();
-                this.setupMobileMenu();
-                
-                // Add direct click handler for player selection
-                this.elements.playersGrid.addEventListener('click', (e) => {
-                    const item = e.target.closest('.player-selection-item');
-                    if (item) {
-                        const playerId = item.dataset.playerId;
-                        const dialog = this.elements.playerSelectionDialog;
-                        const courtId = dialog.dataset.courtId;
-                        const teamNumber = parseInt(dialog.dataset.teamNumber);
-                        const isQueue = dialog.dataset.isQueue === 'true';
-
-                        if (isQueue) {
-                            this.courtManager.addPlayerToQueue(courtId, teamNumber, playerId);
-                        } else {
-                            this.courtManager.addPlayerToGame(courtId, teamNumber, playerId);
-                        }
-                        dialog.close();
-                    }
-                });
-                
-                // Initial render
-                this.renderPlayersList();
-                this.renderCourts();
-            }
-
             setupQueueManagerListeners() {
                 this.queueManager.addListener(() => {
                     const queueContainer = document.querySelector('.unified-queue-section');
@@ -4462,6 +4450,10 @@
             static instance = null;
 
             constructor() {
+                if (ToastManager.instance) {
+                    return ToastManager.instance;
+                }
+                
                 this.container = document.getElementById('toastContainer');
                 if (!this.container) {
                     this.container = document.createElement('div');
@@ -4469,6 +4461,8 @@
                     this.container.className = 'toast-container';
                     document.body.appendChild(this.container);
                 }
+                
+                ToastManager.instance = this;
             }
 
             static getInstance() {
@@ -4482,6 +4476,14 @@
                 const toast = document.createElement('div');
                 toast.className = `toast ${type}`;
                 toast.textContent = message;
+
+                // Remove existing toasts with the same message
+                const existingToasts = this.container.querySelectorAll('.toast');
+                existingToasts.forEach(existingToast => {
+                    if (existingToast.textContent === message) {
+                        existingToast.remove();
+                    }
+                });
 
                 this.container.appendChild(toast);
 
